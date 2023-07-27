@@ -82,7 +82,3 @@ sudo ./entrypoint-with-docker.sh \
     -M $METADATA_TEMPLATE \
     -I $DOCKER_IMAGE
 ```
-
-#### Notes regarding use as container
-
-Docker containers typically have a small overhead but are better if you are managing multiple package installations and versions. So use the one that makes the most sense for you.
