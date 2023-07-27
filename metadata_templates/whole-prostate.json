@@ -1,0 +1,37 @@
+{
+  "ContentCreatorName": "Computational Clinical Imaging Group",
+  "ClinicalTrialSeriesID": "Whole prostate",
+  "ClinicalTrialTimePointID": "1",
+  "SeriesDescription": "Segmentation",
+  "SeriesNumber": "300",
+  "InstanceNumber": "1",
+  "BodyPartExamined": "Prostate",
+  "segmentAttributes": [
+    [
+      {
+        "labelID": 1,
+        "SegmentDescription": "Whole prostate gland",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "WholeGlandnnUNet",
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "123037004",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Anatomical Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "41216001",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Prostate"
+        },
+        "recommendedDisplayRGBValue": [
+          230,
+          158,
+          140
+        ]
+      }
+    ]
+  ],
+  "ContentLabel": "SEGMENTATION",
+  "ContentDescription": "Image segmentation",
+  "ClinicalTrialCoordinatingCenterName": "dcmqi"
+}
