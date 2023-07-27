@@ -8,7 +8,7 @@ METADATA_TEMPLATE=template.json
 OUTPUT_FOLDER=/data/output
 MODEL_FOLDER=model
 IS_DICOM=0
-while getopts "i:o:e:m:I:M:s:n:dh" opt; do
+while getopts "i:o:m:M:f:I:D:dh" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
@@ -19,11 +19,20 @@ while getopts "i:o:e:m:I:M:s:n:dh" opt; do
     m )
        MODEL_FOLDER=$OPTARG
        ;;
-    I )
-       DOCKER_IMAGE=$OPTARG
-       ;;
     M )
        METADATA_TEMPLATE=$OPTARG
+       ;;
+    f )
+       FOLDS=$OPTARG
+       ;;
+    D )
+       DISABLE_TTA="--disable_tta"
+       ;;
+    d ) 
+       IS_DICOM=1
+       ;;
+    I )
+       DOCKER_IMAGE=$OPTARG
        ;;
     h )
        cat assets/helptext-docker.txt

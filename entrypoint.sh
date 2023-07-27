@@ -7,8 +7,10 @@ TMP_FOLDER=.tmp
 METADATA_TEMPLATE=template.json
 OUTPUT_FOLDER=/data/output
 MODEL_FOLDER=model
+DISABLE_TTA=""
+FOLDS="0,1,2,3,4"
 IS_DICOM=0
-while getopts "i:o:e:m:M:s:n:dh" opt; do
+while getopts "i:o:m:M:f:dhD" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
@@ -22,12 +24,18 @@ while getopts "i:o:e:m:M:s:n:dh" opt; do
     M )
        METADATA_TEMPLATE=$OPTARG
        ;;
-    h )
-       cat assets/helptext.txt
-       exit 0
+    f )
+       FOLDS=$OPTARG
+       ;;
+    D )
+       DISABLE_TTA="--disable_tta"
        ;;
     d ) 
        IS_DICOM=1
+       ;;
+    h )
+       cat assets/helptext.txt
+       exit 0
        ;;
   esac
 done
@@ -68,7 +76,7 @@ echo "Running nnUNet..."
 nnUNetv2_predict_from_modelfolder \
     -i $TMP_FOLDER \
     -o $OUTPUT_FOLDER \
-    -m $MODEL_FOLDER
+    -m $MODEL_FOLDER $DISABLE_TTA -f $(echo $FOLDS | tr "," " ")
 
 echo "Running postprocessing..."
 nnUNetv2_apply_postprocessing \

@@ -23,17 +23,19 @@ script to run an nnUNet model while handling input and output conversions automa
 spacing and extension are inferred directly from the nnUNet model.
 
 usage:
-    ./entrypoint -i INPUT_PATHS -o OUTPUT_FOLDER -m MODEL_FOLDER [-d] [-M METADATA]
+    ./entrypoint -i INPUT_PATHS -o OUTPUT_FOLDER 
+    -m MODEL_FOLDER [-d] [-M METADATA] [-f FOLDS] [--disable_tta]
 
 args:
-    -i      input paths to different files or DICOM folders (CANNOT CONTAIN SPACE CHARACTERS)
-    -o      path to output folder
-    -m      folder for the nnUNet model (should contain folds_X, plans.json, dataset.json, etc.)
-    -d      (optional) tells the ./entrypoint.sh that the input is a DICOM folder
-    -M      (optional) metadata template file for volume to DICOM-seg conversion. Must be specified
-            if input is DICOM (if -d is used). This template can be generated using the following tool:
-            https://qiicr.org/dcmqi/#/seg
-
+    -i               input paths to different files or DICOM folders (CANNOT CONTAIN SPACES)
+    -o               path to output folder
+    -m               folder for the nnUNet model (should contain folds_X, plans.json, dataset.json, etc.)
+    -d               (optional) tells the ./entrypoint.sh that the input is a DICOM folder
+    -M               (optional) metadata template file for volume to DICOM-seg conversion. Must be specified
+                     if input is DICOM (if -d is used). This template can be generated using the following tool:
+                     https://qiicr.org/dcmqi/#/seg
+    -f               (optional) comma separated list of folds (e.g. -f 1,2,3,4)
+    -D               (optional) disables the nnUNet test time augmentation
 ```
 
 #### Example
@@ -44,7 +46,8 @@ args:
     -o output/ \
     -m nnunet_model_folder \
     -d \
-    -M metadata_templates/anatomical-region-of-interest.json
+    -M metadata_templates/anatomical-region-of-interest.json \
+    -D
 ```
 
 As shown above, it is possible to provide more than one series to this script, which assumes that the order by which each series is provided corresponds to the series annotation typical of nnUNet (i.e. `0000` and `0001` for the first and second series types, respectively).
