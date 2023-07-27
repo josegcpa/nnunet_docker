@@ -82,3 +82,7 @@ sudo ./entrypoint-with-docker.sh \
     -M $METADATA_TEMPLATE \
     -I $DOCKER_IMAGE
 ```
+
+### Notes on using DICOM
+
+It is necessary to generate metadata templates for the conversion between the segmentation prediction volume and DICOM volumes. To generate these, the `pydicom_seg` developers recommend [this web app](https://qiicr.org/dcmqi/#/seg). It is easy to use and generates reliable metadata templates. Metadata templates should be generated for all segmentation targets to ensure that everything is correctly formatted.
