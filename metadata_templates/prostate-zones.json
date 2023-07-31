@@ -10,7 +10,7 @@
     [
       {
         "labelID": 1,
-        "SegmentDescription": "Whole prostate",
+        "SegmentDescription": "PZ+CZ",
         "SegmentAlgorithmType": "AUTOMATIC",
         "SegmentAlgorithmName": "WholeProstatennUNet",
         "SegmentedPropertyCategoryCodeSequence": {
@@ -27,6 +27,27 @@
           230,
           158,
           140
+        ]
+      },
+      {
+        "labelID": 2,
+        "SegmentDescription": "TZ",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "WholeProstatennUNet",
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "123037004",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Anatomical Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "41216001",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Prostate"
+        },
+        "recommendedDisplayRGBValue": [
+          142,
+          156,
+          232
         ]
       }
     ]
