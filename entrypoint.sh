@@ -51,13 +51,17 @@ echo "    is dicom: $IS_DICOM"
 echo "    spacing (from nnunet model folder): $SPACING"
 echo "    extension (from nnunet model folder): $EXTENSION"
 
+mkdir -p $TMP_FOLDER
+mkdir -p $TMP_FOLDER/raw
+mkdir -p $TMP_FOLDER/preprocessed
+
 if [[ $IS_DICOM == 1 ]]
 then
    echo "Converting DICOM to nifti..."
    i=0
    for file in ${INPUT_PATHS[@]}
    do
-      output_path=$TMP_FOLDER/placeholder_$(printf %04d $i).$EXTENSION
+      output_path=$TMP_FOLDER/raw/placeholder_$(printf %04d $i).$EXTENSION
       python -m utils.dicom_series_to_volume \
          --input_path "$file" \
          --output_path "$output_path"
@@ -68,13 +72,16 @@ else
    echo "Fixing input file names..."
    python -m utils.prepare_for_nnunet \
       --input_paths ${INPUT_PATHS[@]} \
-      --output_folder $TMP_FOLDER \
+      --output_folder $TMP_FOLDER/raw \
       --output_extension $EXTENSION
 fi
 
 echo "Running nnUNet..."
+export nnUNet_raw=$TMP_FOLDER/raw
+export nnUNet_preprocessed=$TMP_FOLDER/preprocessed
+export nnUNet_results=$MODEL_FOLDER
 nnUNetv2_predict_from_modelfolder \
-    -i $TMP_FOLDER \
+    -i $TMP_FOLDER/raw \
     -o $OUTPUT_FOLDER \
     -m $MODEL_FOLDER $DISABLE_TTA -f $(echo $FOLDS | tr "," " ")
 
