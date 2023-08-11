@@ -3,6 +3,7 @@
 set -e
 
 TMP_FOLDER=.tmp
+SEP=assets/separator.txt
 
 METADATA_TEMPLATE=template.json
 OUTPUT_FOLDER=/data/output
@@ -55,6 +56,8 @@ mkdir -p $TMP_FOLDER
 mkdir -p $TMP_FOLDER/raw
 mkdir -p $TMP_FOLDER/preprocessed
 
+echo "" 
+cat $SEP
 if [[ $IS_DICOM == 1 ]]
 then
    echo "Converting DICOM to nifti..."
@@ -75,7 +78,11 @@ else
       --output_folder $TMP_FOLDER/raw \
       --output_extension $EXTENSION
 fi
+cat $SEP
 
+echo ""
+
+cat $SEP
 echo "Running nnUNet..."
 export nnUNet_raw=$TMP_FOLDER/raw
 export nnUNet_preprocessed=$TMP_FOLDER/preprocessed
@@ -84,21 +91,36 @@ nnUNetv2_predict_from_modelfolder \
     -i $TMP_FOLDER/raw \
     -o $OUTPUT_FOLDER \
     -m $MODEL_FOLDER $DISABLE_TTA -f $(echo $FOLDS | tr "," " ")
+cat $SEP
 
-echo "Running postprocessing..."
-nnUNetv2_apply_postprocessing \
-    -i $OUTPUT_FOLDER \
-    -o $OUTPUT_FOLDER \
-    -pp_pkl_file $MODEL_FOLDER/crossval_results_folds_0_1_2_3_4/postprocessing.pkl \
-    -np 8 \
-    -plans_json $MODEL_FOLDER/crossval_results_folds_0_1_2_3_4/plans.json
+echo ""
 
+cat $SEP
+post_processing_pkl=$MODEL_FOLDER/crossval_results_folds_0_1_2_3_4/postprocessing.pkl
+if [[ -f "$post_processing_pkl" ]]
+then
+   echo "Running postprocessing..."
+   nnUNetv2_apply_postprocessing \
+      -i $OUTPUT_FOLDER \
+      -o $OUTPUT_FOLDER \
+      -pp_pkl_file $post_processing_pkl \
+      -np 8 \
+      -plans_json $MODEL_FOLDER/crossval_results_folds_0_1_2_3_4/plans.json
+else
+   echo "Postprocessing not applied ($post_processing_pkl not found)"
+fi
+cat $SEP
+
+echo ""
+
+cat $SEP
 if [[ $IS_DICOM == 1 ]]
 then
    echo "Converting volume to DICOM-seg..."
    python utils/volume_to_dicom_seg.py \
-      --mask_path $OUTPUT_FOLDER/placeholder.mha \
+      --mask_path $OUTPUT_FOLDER/placeholder.$EXTENSION \
       --source_data_path ${INPUT_PATHS[0]} \
       --metadata_path $METADATA_TEMPLATE \
       --output_path $OUTPUT_FOLDER/placeholder.dcm
 fi
+cat $SEP

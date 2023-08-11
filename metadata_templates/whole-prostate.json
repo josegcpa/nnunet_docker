@@ -5,7 +5,7 @@
   "SeriesDescription": "Segmentation",
   "SeriesNumber": "300",
   "InstanceNumber": "1",
-  "BodyPartExamined": "Prostate",
+  "BodyPartExamined": "PROSTATE",
   "segmentAttributes": [
     [
       {
