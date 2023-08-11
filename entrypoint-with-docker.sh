@@ -7,8 +7,8 @@ TMP_FOLDER=.tmp
 METADATA_TEMPLATE=template.json
 OUTPUT_FOLDER=/data/output
 MODEL_FOLDER=model
-IS_DICOM=0
-while getopts "i:o:m:M:f:I:D:dh" opt; do
+ADDITIONAL_ARGS=""
+while getopts "i:o:m:M:f:I:dhD" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
@@ -22,24 +22,15 @@ while getopts "i:o:m:M:f:I:D:dh" opt; do
     M )
        METADATA_TEMPLATE=$OPTARG
        ;;
-    f )
-       FOLDS=$OPTARG
-       ;;
-    D )
-       DISABLE_TTA="--disable_tta"
-       ;;
-    d ) 
-       IS_DICOM=1
-       ;;
     I )
        DOCKER_IMAGE=$OPTARG
        ;;
+    *)
+        ADDITIONAL_ARGS=$(echo $ADDITIONAL_ARGS -${opt} $OPTARG)
+        ;;
     h )
        cat assets/helptext-docker.txt
        exit 0
-       ;;
-    d ) 
-       IS_DICOM=1
        ;;
   esac
 done
@@ -69,4 +60,4 @@ docker run \
     -v $(dirname $(realpath $METADATA_TEMPLATE)):/metadata \
     --rm \
     $DOCKER_IMAGE \
-    -i $file_names_in_docker -d -M $metadata_name_in_docker
+    -i $file_names_in_docker -M $metadata_name_in_docker -m /model $ADDITIONAL_ARGS
