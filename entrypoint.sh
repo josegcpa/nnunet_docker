@@ -33,8 +33,9 @@ MODEL_FOLDER=model
 DISABLE_TTA=""
 FOLDS="0,1,2,3,4"
 OUTPUT_NAME=placeholder
+DEVICE="cuda"
 IS_DICOM=0
-while getopts "i:o:m:M:f:n:dhD" opt; do
+while getopts "i:o:m:M:f:n:dhDV" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
@@ -53,6 +54,9 @@ while getopts "i:o:m:M:f:n:dhD" opt; do
        ;;
     D )
        DISABLE_TTA="--disable_tta"
+       ;;
+    V )
+       DEVICE=$OPTARG
        ;;
     d ) 
        IS_DICOM=1
@@ -109,6 +113,7 @@ export nnUNet_raw=$TMP_FOLDER/raw
 export nnUNet_preprocessed=$TMP_FOLDER/preprocessed
 export nnUNet_results=$MODEL_FOLDER
 nnUNetv2_predict_from_modelfolder \
+    -device $DEVICE \
     -i $TMP_FOLDER/raw \
     -o $OUTPUT_FOLDER \
     -m $MODEL_FOLDER $DISABLE_TTA -f $(echo $FOLDS | tr "," " ")

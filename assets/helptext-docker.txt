@@ -15,6 +15,7 @@ args:
                      if input is DICOM (if -d is used). This template can be generated using the following tool:
                      https://qiicr.org/dcmqi/#/seg
     -f               (optional) comma separated list of folds (e.g. -f 1,2,3,4)
+    -n               (optional) output name
     -D               (optional) disables the nnUNet test time augmentation
     -I               name of Docker image
 
