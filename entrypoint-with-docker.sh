@@ -9,7 +9,7 @@ OUTPUT_FOLDER=/data/output
 MODEL_FOLDER=model
 ADDITIONAL_ARGS=""
 DEVICE=cuda
-while getopts "i:o:m:M:f:I:dhD" opt; do
+while getopts "i:o:m:M:f:I:dhDV" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
