@@ -70,4 +70,4 @@ docker run \
     -v $(dirname $(realpath $METADATA_TEMPLATE)):/metadata \
     --rm $GPU_STR \
     $DOCKER_IMAGE \
-    -i $file_names_in_docker -M $metadata_name_in_docker -m /model $ADDITIONAL_ARGS
+    -i $file_names_in_docker -M $metadata_name_in_docker -m /mode -V $DEVICE $ADDITIONAL_ARGS
