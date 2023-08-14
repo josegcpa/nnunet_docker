@@ -8,6 +8,7 @@ METADATA_TEMPLATE=template.json
 OUTPUT_FOLDER=/data/output
 MODEL_FOLDER=model
 ADDITIONAL_ARGS=""
+DEVICE=cuda
 while getopts "i:o:m:M:f:I:dhD" opt; do
   case ${opt} in
     i )
@@ -24,6 +25,9 @@ while getopts "i:o:m:M:f:I:dhD" opt; do
        ;;
     I )
        DOCKER_IMAGE=$OPTARG
+       ;;
+    V )
+       DEVICE=$OPTARG
        ;;
     *)
         ADDITIONAL_ARGS=$(echo $ADDITIONAL_ARGS -${opt} $OPTARG)
@@ -51,13 +55,19 @@ file_names_in_docker=$(
    done | xargs)
 metadata_name_in_docker=/metadata/$(basename $METADATA_TEMPLATE)
 
+if [[ "$DEVICE" == "cpu" ]]
+then
+   GPU_STR=""
+else
+   GPU_STR="--gpus all"
+fi
+
 docker run \
-    --gpus all \
     --user "$(id -u):$(id -g)" \
     -v $(dirname $(realpath $INPUT_PATHS)):/data/input \
     -v $(realpath $OUTPUT_FOLDER):/data/output \
     -v $(realpath $MODEL_FOLDER):/model \
     -v $(dirname $(realpath $METADATA_TEMPLATE)):/metadata \
-    --rm \
+    --rm $GPU_STR \
     $DOCKER_IMAGE \
     -i $file_names_in_docker -M $metadata_name_in_docker -m /model $ADDITIONAL_ARGS
