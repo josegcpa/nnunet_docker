@@ -62,6 +62,8 @@ else
    GPU_STR="--gpus all"
 fi
 
+echo $GPU_STR $DEVICE
+
 docker run \
     --user "$(id -u):$(id -g)" \
     -v $(dirname $(realpath $INPUT_PATHS)):/data/input \

@@ -35,7 +35,7 @@ FOLDS="0,1,2,3,4"
 OUTPUT_NAME=placeholder
 DEVICE="cuda"
 IS_DICOM=0
-while getopts "i:o:m:M:f:n:dhDV" opt; do
+while getopts "i:o:m:M:V:f:n:dhD" opt; do
   case ${opt} in
     i )
        INPUT_PATHS=($OPTARG)
