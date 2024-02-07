@@ -1,3 +1,5 @@
 pydicom==2.4.2
 pydicom-seg==0.4.1
-nnunetv2==2.1
+SimpleITK==2.2.1
+nnunetv2==2.2.1
+    

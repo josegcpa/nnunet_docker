@@ -11,55 +11,65 @@ Given that [nnUNet](https://github.com/MIC-DKFZ/nnUNet) is a relatively flexible
 A considerable objective of this framework was its deployment as a standalone tool (for `bash`). To use it:
 
 1. Install the necessary packages using an appropriate Python environment (i.e. `pip install -r requirements.txt`). We have tested this using Python `v3.11`
-2. Give executable permissions to ./entrypoint.sh (i.e. `chwon +x entrypoint.sh`)
-3. Run the `entrypoint.sh` script with the appropriate arguments and flags. To know what they are please run `./entrypoint.sh -h`, i.e.
+2. Run `python utils/entrypoints.py --help` to see the available options
+3. Segment away!
 
 ```bash
-$ ./entrypoint.sh -h
+python utils/entrypoint.py --help
 ```
 
 ```
-script to run an nnUNet model while handling input and output conversions automatically.
-spacing and extension are inferred directly from the nnUNet model.
+usage: Entrypoint for nnUNet prediction. Handles all data format conversions. [-h] --series_paths SERIES_PATHS [SERIES_PATHS ...] --model_path
+                                                                              MODEL_PATH [--checkpoint_name CHECKPOINT_NAME] --output_dir
+                                                                              OUTPUT_DIR --metadata_path METADATA_PATH [--study_uid STUDY_UID]
+                                                                              [--folds FOLDS [FOLDS ...]] [--tta] [--tmp_dir TMP_DIR]
+                                                                              [--is_dicom] [--proba_map] [--save_nifti_inputs]
 
-usage:
-    ./entrypoint -i INPUT_PATHS -o OUTPUT_FOLDER 
-    -m MODEL_FOLDER [-d] [-M METADATA] [-f FOLDS] [--disable_tta]
-
-args:
-    -i               input paths to different files or DICOM folders (CANNOT CONTAIN SPACES)
-    -o               path to output folder
-    -m               folder for the nnUNet model (should contain folds_X, plans.json, dataset.json, etc.)
-    -d               (optional) tells the ./entrypoint.sh that the input is a DICOM folder
-    -M               (optional) metadata template file for volume to DICOM-seg conversion. Must be specified
-                     if input is DICOM (if -d is used). This template can be generated using the following tool:
-                     https://qiicr.org/dcmqi/#/seg
-    -f               (optional) comma separated list of folds (e.g. -f 1,2,3,4)
-    -D               (optional) disables the nnUNet test time augmentation
+options:
+  -h, --help            show this help message and exit
+  --series_paths SERIES_PATHS [SERIES_PATHS ...], -i SERIES_PATHS [SERIES_PATHS ...]
+                        Path to input series
+  --model_path MODEL_PATH, -m MODEL_PATH
+                        Path to nnUNet model folder
+  --checkpoint_name CHECKPOINT_NAME, -ckpt CHECKPOINT_NAME
+                        Checkpoint name for nnUNet
+  --output_dir OUTPUT_DIR, -o OUTPUT_DIR
+                        Path to output directory
+  --metadata_path METADATA_PATH, -M METADATA_PATH
+                        Path to metadata template for DICOM-Seg output
+  --study_uid STUDY_UID, -s STUDY_UID
+                        Study UID if series are SimpleITK-readable files
+  --folds FOLDS [FOLDS ...], -f FOLDS [FOLDS ...]
+                        Sets which folds should be used with nnUNet
+  --tta, -t             Uses test-time augmentation during prediction
+  --tmp_dir TMP_DIR     Temporary directory
+  --is_dicom, -D        Assumes input is DICOM (and also converts to DICOM seg; prediction.dcm in output_dir)
+  --proba_map, -p       Produces a Nifti format probability map (probabilities.nii.gz in output_dir)
+  --save_nifti_inputs, -S
+                        Moves Nifti inputs to output folder (volume_XXXX.nii.gz in output_dir)
 ```
 
-#### Example
+Example:
 
+```bash
+python utils/entrypoints.py \
+    -i study/series_1 study/series_2 study/series_3 \
+    -o example_output/ \
+    -m models/prostate_model \
+    -M metadata_templates/metadata-template.json \
+    -D -f 0 1 2 3 4 \
+    --proba_map \
+    --save_nifti_inputs
 ```
-./entrypoint.sh \
-    -i dicom_dataset/dicom_study/dicom_series_1 dicom_dataset/dicom_study/dicom_series_2 \
-    -o output/ \
-    -m nnunet_model_folder \
-    -d \
-    -M metadata_templates/anatomical-region-of-interest.json \
-    -D
-```
-
-As shown above, it is possible to provide more than one series to this script, which assumes that the order by which each series is provided corresponds to the series annotation typical of nnUNet (i.e. `0000` and `0001` for the first and second series types, respectively).
 
 ### Running as a Docker container
 
 Firstly, users must install [Docker](https://www.docker.com/). **Docker requires `sudo` access so users should be sure to have this**. Then:
 
 1. Build the container (`sudo docker build -f Dockerfile . -t nnunet_predict`)
-2. Run the container. We have replicated this as an additional script (`./entrypoint-with-docker.sh`) with the same arguments as those specified to run as a standalone tool with the addition of a `-I` flag specifying the name of the Docker image.
+2. Run the container. We have replicated this as an additional script (`utils/entrypoint-with-docker.py`) with the same arguments as those specified to run as a standalone tool with the addition of a `-c` flag specifying the name of the Docker image.
 
-With `entrypoint-with-docker.sh`, this:
+With `utils/entrypoint-with-docker.py`, this:
 
 ```
 docker run \
@@ -77,13 +87,13 @@ docker run \
 becomes this (for a DICOM input):
 
 ```
-sudo ./entrypoint-with-docker.sh \
+python utils/entrypoint-with-docker.py \
     -i $INPUT_PATHS \
     -o $OUTPUT_FOLDER \
     -m $MODEL_FOLDER \
     -d \
     -M $METADATA_TEMPLATE \
-    -I $DOCKER_IMAGE
+    -c $DOCKER_IMAGE
 ```
 
 ### Notes on using DICOM

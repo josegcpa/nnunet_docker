@@ -4,9 +4,13 @@ WORKDIR /nnunet_pred_folder
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-RUN mkdir /model; mkdir -p /data; mkdir -p /data/input; mkdir -p /data/output
+RUN mkdir /model && \
+    mkdir -p /data && \
+    mkdir -p /data/input && \
+    mkdir -p /data/output && \
+    mkdir -p utils
 
-COPY utils utils
-COPY assets assets
-COPY entrypoint.sh .
-ENTRYPOINT ["./entrypoint.sh","-o /data/output","-m /model"]
+COPY utils/utils.py utils/utils.py
+COPY utils/entrypoint.py utils/entrypoint.py
+RUN chown root -R utils
+ENTRYPOINT ["python", "utils/entrypoint.py","-o /data/output","-m /model"]

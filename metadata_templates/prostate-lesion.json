@@ -1,0 +1,42 @@
+{
+    "ContentCreatorName": "Computational Clinical Imaging Group",
+    "ClinicalTrialSeriesID": "Session1",
+    "ClinicalTrialTimePointID": "1",
+    "SeriesDescription": "Segmentation",
+    "SeriesNumber": "300",
+    "InstanceNumber": "1",
+    "BodyPartExamined": "Prostate",
+    "segmentAttributes": [
+      [
+        {
+          "labelID": 1,
+          "SegmentDescription": "Aggressive lesion",
+          "SegmentAlgorithmType": "AUTOMATIC",
+          "SegmentAlgorithmName": "nnUNetv1.0",
+          "AnatomicRegionSequence": {
+            "CodeValue": "41216001",
+            "CodingSchemeDesignator": "SCT",
+            "CodeMeaning": "Prostate"
+          },
+          "SegmentedPropertyCategoryCodeSequence": {
+            "CodeValue": "49755003",
+            "CodingSchemeDesignator": "SCT",
+            "CodeMeaning": "Morphologically Altered Structure"
+          },
+          "SegmentedPropertyTypeCodeSequence": {
+            "CodeValue": "108369006",
+            "CodingSchemeDesignator": "SCT",
+            "CodeMeaning": "Neoplasm"
+          },
+          "recommendedDisplayRGBValue": [
+            254,
+            28,
+            29
+          ]
+        }
+      ]
+    ],
+    "ContentLabel": "SEGMENTATION",
+    "ContentDescription": "Image segmentation",
+    "ClinicalTrialCoordinatingCenterName": "dcmqi"
+  }
