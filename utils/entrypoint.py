@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
         if args.rt_struct_output:
             rt_struct_output = f"{args.output_dir}/struct.dcm"
-            print(f"writing dicom output to {rt_struct_output}")
+            print(f"writing dicom struct to {rt_struct_output}")
             from rtstruct_writers import save_mask_as_rtstruct
 
             mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
