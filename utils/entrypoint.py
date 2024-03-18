@@ -51,6 +51,8 @@ def main(
             read_dicom_as_sitk(glob(f"{series_path}/*dcm"))
             for series_path in series_paths
         ]
+        good_file_paths = [x[1] for x in sitk_images]
+        sitk_images = [x[0] for x in sitk_images]
         for idx in range(1, len(sitk_images)):
             sitk_images[idx] = resample_image_to_target(
                 sitk_images[idx], target=sitk_images[0]
@@ -79,7 +81,7 @@ def main(
     output_mask_path = f"{output_dir}/prediction.nii.gz"
     sitk.WriteImage(sitk.ReadImage(mask_path), output_mask_path)
 
-    return prediction_files, output_mask_path, study_name
+    return prediction_files, output_mask_path, study_name, good_file_paths
 
 
 if __name__ == "__main__":
@@ -170,7 +172,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.output_dir = args.output_dir.strip().rstrip("/")
-    sitk_files, mask_path, study_name = main(
+    sitk_files, mask_path, study_name, good_file_paths = main(
         model_path=args.model_path.strip(),
         series_paths=args.series_paths,
         checkpoint_name=args.checkpoint_name.strip(),
@@ -197,7 +199,7 @@ if __name__ == "__main__":
             skip_missing_segment=False,
         )
 
-        dcm = writer.write(mask, glob(os.path.join(args.series_paths[0], "*")))
+        dcm = writer.write(mask, good_file_paths[0])
         # output_dcm_path = f"{args.output_dir}/{study_name}.dcm"
         output_dcm_path = f"{args.output_dir}/prediction.dcm"
         print(f"writing dicom output to {output_dcm_path}")
@@ -221,6 +223,23 @@ if __name__ == "__main__":
         proba_map = threshold.Execute(proba_map)
         print(f"writing probability map to {output_proba_map}")
         sitk.WriteImage(proba_map, output_proba_map)
+
+        if args.is_dicom is True:
+            from pydicom_seg_writers import FractionalWriter
+
+            metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+                args.metadata_path
+            )
+            writer = FractionalWriter(
+                template=metadata_template,
+                skip_empty_slices=True,
+                skip_missing_segment=False,
+            )
+
+            dcm = writer.write(proba_map, good_file_paths[0])
+            output_dcm_path = f"{args.output_dir}/probabilities.dcm"
+            print(f"writing dicom output to {output_dcm_path}")
+            dcm.save_as(output_dcm_path)
 
     if args.save_nifti_inputs is True:
         for sitk_file in sitk_files:

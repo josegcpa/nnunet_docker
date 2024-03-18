@@ -1,10 +1,11 @@
 import os
 import numpy as np
 import SimpleITK as sitk
-import pydicom_seg
+import pydicom
 from glob import glob
 from typing import List, Dict
 from pydicom import dcmread
+from pydicom.dataset import FileDataset
 
 from typing import Sequence, Union
 
@@ -234,7 +235,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     for k in metadata:
         sitk_image.SetMetaData(k, metadata[k])
 
-    return sitk_image
+    return sitk_image, good_file_paths
 
 
 def get_study_uid(dicom_dir: List[str]) -> str:
