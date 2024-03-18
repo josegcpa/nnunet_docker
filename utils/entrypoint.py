@@ -2,6 +2,8 @@ import os
 import SimpleITK as sitk
 import torch
 import random
+import json
+import numpy as np
 from glob import glob
 from utils import resample_image_to_target, read_dicom_as_sitk, get_study_uid
 from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
@@ -133,7 +135,7 @@ if __name__ == "__main__":
         "-f",
         help="Sets which folds should be used with nnUNet",
         nargs="+",
-        type=int,
+        type=str,
         default=(0,),
     )
     parser.add_argument(
@@ -162,6 +164,11 @@ if __name__ == "__main__":
         action="store_true",
     )
     parser.add_argument(
+        "--rt_struct_output",
+        help="Produces a DICOM RT Struct file (struct.dcm in output_dir)",
+        action="store_true",
+    )
+    parser.add_argument(
         "--save_nifti_inputs",
         "-S",
         help="Moves Nifti inputs to output folder (volume_XXXX.nii.gz in \
@@ -172,6 +179,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.output_dir = args.output_dir.strip().rstrip("/")
+    folds = []
+    for f in args.folds:
+        if "," in f:
+            folds.extend([int(x) for x in f.split(",")])
+        else:
+            folds.append(int(f))
     sitk_files, mask_path, study_name, good_file_paths = main(
         model_path=args.model_path.strip(),
         series_paths=args.series_paths,
@@ -179,7 +192,7 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         tmp_dir=args.tmp_dir,
         is_dicom=args.is_dicom,
-        use_folds=args.folds,
+        use_folds=folds,
         use_mirroring=args.tta,
         study_name=args.study_uid,
         proba_map=args.proba_map,
@@ -205,9 +218,29 @@ if __name__ == "__main__":
         print(f"writing dicom output to {output_dcm_path}")
         dcm.save_as(output_dcm_path)
 
-    if args.proba_map is True:
-        import numpy as np
+        if args.rt_struct_output:
+            rt_struct_output = f"{args.output_dir}/struct.dcm"
+            print(f"writing dicom output to {rt_struct_output}")
+            from rtstruct_writers import save_mask_as_rtstruct
 
+            mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
+            with open(args.metadata_path) as o:
+                metadata = json.load(o)
+            segment_info = [
+                [
+                    element["SegmentDescription"],
+                    element["recommendedDisplayRGBValue"],
+                ]
+                for element in metadata["segmentAttributes"][0]
+            ]
+            save_mask_as_rtstruct(
+                mask_array,
+                os.path.dirname(good_file_paths[0][0]),
+                output_path=rt_struct_output,
+                segment_info=segment_info,
+            )
+
+    if args.proba_map is True:
         class_idx = 1
 
         input_proba_map = f"{args.output_dir}/volume.npz"
