@@ -178,6 +178,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # easier to adapt to docker
+    args.series_paths = os.environ.get("SERIES_PATHS", args.series_paths)
+
     args.output_dir = args.output_dir.strip().rstrip("/")
     folds = []
     for f in args.folds:
