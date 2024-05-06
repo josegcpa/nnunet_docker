@@ -1,11 +1,10 @@
 import os
 import numpy as np
 import SimpleITK as sitk
-import pydicom
+import pydicom_seg
 from glob import glob
 from typing import List, Dict
 from pydicom import dcmread
-from pydicom.dataset import FileDataset
 
 from typing import Sequence, Union
 
@@ -76,7 +75,7 @@ def resample_image(
     resample.SetTransform(sitk.Transform())
     resample.SetDefaultPixelValue(0.0)
 
-    if is_mask == True:
+    if is_mask is True:
         resample.SetInterpolator(sitk.sitkNearestNeighbor)
     else:
         resample.SetInterpolator(sitk.sitkBSpline)
