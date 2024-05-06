@@ -179,7 +179,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # easier to adapt to docker
-    if os.environ["SERIES_PATHS"] is not None:
+    if "SERIES_PATHS" in os.environ:
         series_paths = os.environ["SERIES_PATHS"].split(" ")
     else:
         series_paths = args.series_paths
