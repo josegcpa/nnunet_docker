@@ -31,7 +31,6 @@ def main(
         tile_step_size=0.5,
         use_gaussian=True,
         use_mirroring=use_mirroring,
-        perform_everything_on_gpu=True,
         device=torch.device("cuda", 0),
         verbose=False,
         verbose_preprocessing=False,
@@ -180,7 +179,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # easier to adapt to docker
-    args.series_paths = os.environ.get("SERIES_PATHS", args.series_paths)
+    if os.environ["SERIES_PATHS"] is not None:
+        series_paths = os.environ["SERIES_PATHS"].split(" ")
+    else:
+        series_paths = args.series_paths
+    series_paths = [s.strip() for s in series_paths]
 
     args.output_dir = args.output_dir.strip().rstrip("/")
     folds = []
@@ -188,7 +191,7 @@ if __name__ == "__main__":
         folds.append(int(f))
     sitk_files, mask_path, study_name, good_file_paths = main(
         model_path=args.model_path.strip(),
-        series_paths=args.series_paths,
+        series_paths=series_paths,
         checkpoint_name=args.checkpoint_name.strip(),
         output_dir=args.output_dir,
         tmp_dir=args.tmp_dir,
