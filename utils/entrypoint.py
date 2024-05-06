@@ -208,7 +208,7 @@ if __name__ == "__main__":
         import pydicom_seg
 
         metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-            args.metadata_path
+            args.metadata_path.strip()
         )
         writer = pydicom_seg.MultiClassWriter(
             template=metadata_template,
@@ -228,7 +228,7 @@ if __name__ == "__main__":
             from rtstruct_writers import save_mask_as_rtstruct
 
             mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
-            with open(args.metadata_path) as o:
+            with open(args.metadata_path.strip()) as o:
                 metadata = json.load(o)
             segment_info = [
                 [
@@ -265,7 +265,7 @@ if __name__ == "__main__":
             from pydicom_seg_writers import FractionalWriter
 
             metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-                args.metadata_path
+                args.metadata_path.strip()
             )
             writer = FractionalWriter(
                 template=metadata_template,
