@@ -6,7 +6,6 @@ import json
 import numpy as np
 from glob import glob
 from utils import resample_image_to_target, read_dicom_as_sitk, get_study_uid
-from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
 
 def main(
@@ -25,6 +24,8 @@ def main(
     os.environ["nnUNet_preprocessed"] = "tmp/preproc"
     os.environ["nnUNet_raw"] = series_paths[0]
     os.environ["nnUNet_results"] = model_path
+
+    from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
     predictor = nnUNetPredictor(
         tile_step_size=0.5,
