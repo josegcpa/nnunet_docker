@@ -185,10 +185,7 @@ if __name__ == "__main__":
     args.output_dir = args.output_dir.strip().rstrip("/")
     folds = []
     for f in args.folds:
-        if "," in f:
-            folds.extend([int(x) for x in f.split(",")])
-        else:
-            folds.append(int(f))
+        folds.append(int(f))
     sitk_files, mask_path, study_name, good_file_paths = main(
         model_path=args.model_path.strip(),
         series_paths=args.series_paths,
