@@ -22,8 +22,8 @@ python utils/entrypoint.py --help
 usage: Entrypoint for nnUNet prediction. Handles all data format conversions. [-h] --series_paths SERIES_PATHS [SERIES_PATHS ...] --model_path
                                                                               MODEL_PATH [--checkpoint_name CHECKPOINT_NAME] --output_dir
                                                                               OUTPUT_DIR --metadata_path METADATA_PATH [--study_uid STUDY_UID]
-                                                                              [--folds FOLDS [FOLDS ...]] [--tta] [--tmp_dir TMP_DIR]
-                                                                              [--is_dicom] [--proba_map] [--save_nifti_inputs]
+                                                                              [--folds FOLDS [FOLDS ...]] [--tta] [--tmp_dir TMP_DIR] [--is_dicom]
+                                                                              [--proba_map] [--rt_struct_output] [--save_nifti_inputs]
 
 options:
   -h, --help            show this help message and exit
@@ -45,9 +45,9 @@ options:
   --tmp_dir TMP_DIR     Temporary directory
   --is_dicom, -D        Assumes input is DICOM (and also converts to DICOM seg; prediction.dcm in output_dir)
   --proba_map, -p       Produces a Nifti format probability map (probabilities.nii.gz in output_dir)
+  --rt_struct_output    Produces a DICOM RT Struct file (struct.dcm in output_dir)
   --save_nifti_inputs, -S
-                        Moves Nifti inputs to output folder (volume_XXXX.nii.gz in output_dir)
-```
+                        Moves Nifti inputs to output folder (volume_XXXX.nii.gz in output_dir)```
 
 Example:
 

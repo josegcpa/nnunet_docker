@@ -76,8 +76,11 @@ def main(
             prediction_files.append(tmp_path)
 
     predictor.predict_from_files(
-        [prediction_files], output_dir, save_probabilities=proba_map,
-        num_processes_preprocessing=1, num_processes_segmentation_export=1
+        [prediction_files],
+        output_dir,
+        save_probabilities=proba_map,
+        num_processes_preprocessing=1,
+        num_processes_segmentation_export=1,
     )
 
     mask_path = f"{output_dir}/volume{term}"
