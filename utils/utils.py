@@ -9,6 +9,44 @@ from pydicom import dcmread
 from typing import Sequence, Union
 
 
+def filter_by_bvalue(dicom_files: list, target_bvalue: int, exact: bool=False) -> list:
+    BVALUE_TAG = ('0018', '9087')
+    SIEMENS_BVALUE_TAG = ("0019", "100c")
+    GE_BVALUE_TAG = ("0043", "1039")
+    bvalues = []
+    for d in dicom_files:
+        curr_bvalue = None
+        bvalue = d.get(BVALUE_TAG, None)
+        siemens_bvalue = d.get(SIEMENS_BVALUE_TAG, None)
+        ge_bvalue = d.get(GE_BVALUE_TAG, None)
+        if bvalue is not None:
+            curr_bvalue = bvalue.value
+        elif siemens_bvalue is not None:
+            curr_bvalue = siemens_bvalue.value
+        elif ge_bvalue is not None:
+            curr_bvalue = ge_bvalue.value
+            v = str(v)
+            if "[" in v and "]" in v:
+                v = v.strip().strip("[").strip("]").split(",")
+                v = [int(x) for x in v]
+            if isinstance(v, list) is False:
+                v = v.split("\\")
+                v = str(v[0])
+            else:
+                v = str(v[0])
+            if len(v) > 5:
+                v = v[-4:]
+        bvalues.append(int(curr_bvalue))
+    unique_bvalues = set(bvalues)
+    if len(unique_bvalues) in [0, 1]:
+        return dicom_files
+    if (target_bvalue not in unique_bvalues) and (exact is True):
+        raise RuntimeError("Requested b-value not available")
+    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[0]
+    dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
+    print(len(dicom_files))
+    return dicom_files
+
 def resample_image_to_target(
     moving: sitk.Image,
     target: sitk.Image,
@@ -185,6 +223,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     fs = []
     good_file_paths = []
     orientation = None
+    series_path = os.path.dirname(file_paths[0])
     for dcm_file in file_paths:
         f = dcmread(dcm_file)
         if (0x0020, 0x0037) in f:
@@ -192,8 +231,9 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
         if (0x0020, 0x0032) in f:
             fs.append(f)
             good_file_paths.append(dcm_file)
+    fs = filter_by_bvalue(fs, 1400)
     if orientation is None:
-        return "No orientation available"
+        raise RuntimeError(f"No orientation available for {series_path}")
     position = np.array([x[0x0020, 0x0032].value for x in fs])
     rankings = np.array([x[0x0020, 0x0013].value for x in fs])
 
@@ -203,7 +243,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     position = np.array([x[0x0020, 0x0032].value for x in fs])
     rankings = np.array([x[0x0020, 0x0013].value for x in fs])
     if segment_selection is None:
-        return "Positions are incorrect"
+        raise RuntimeError(f"Positions are incorrect for {series_path}")
     orientation = list(map(float, orientation))
     orientation_sitk = dicom_orientation_to_sitk_direction(orientation)
     z_axis = 2
@@ -213,7 +253,9 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     z_position = np.sort(real_position[:, z_axis])
     z_spacing = np.median(np.diff(z_position))
     if np.isclose(z_spacing, 0) == True:
-        return "Incorrect z-spacing information"
+        raise RuntimeError(
+            f"Incorrect z-spacing information for {series_path}." + \
+                "This may be due to multiple slices having identical positions")
     pixel_spacing = [*f[0x0028, 0x0030].value, z_spacing]
     fs = sorted(fs, key=lambda x: float(x[0x0020, 0x0032].value[z_axis]))
 
@@ -223,8 +265,9 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
         pixel_data = np.stack(
             [f.pixel_array for f in fs],
         )
-    except Exception:
-        return "Pixel data may be corrupted"
+    except Exception as e:
+        print(e)
+        raise RuntimeError(f"Pixel data could not be read for {series_path}")
 
     sitk_image = sitk.GetImageFromArray(pixel_data)
     sitk_image.SetDirection(orientation_sitk)
@@ -246,7 +289,6 @@ def get_study_uid(dicom_dir: List[str]) -> str:
     Returns:
         str: string corresponding to study UID.
     """
-
     return dcmread(glob(f"{dicom_dir}/*dcm")[0])[(0x0020, 0x000D)].value
 
 
