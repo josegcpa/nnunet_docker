@@ -5,7 +5,15 @@ import random
 import json
 import numpy as np
 from glob import glob
-from utils import resample_image_to_target, read_dicom_as_sitk, get_study_uid
+from utils import (
+    resample_image_to_target,
+    read_dicom_as_sitk,
+    get_study_uid,
+    export_to_dicom_seg,
+    export_to_dicom_struct,
+    export_proba_map,
+    export_fractional_dicom_seg,
+)
 
 
 def main(
@@ -208,80 +216,6 @@ if __name__ == "__main__":
 
     mask = sitk.ReadImage(mask_path)
 
-    if args.is_dicom is True:
-        import pydicom_seg
-
-        metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-            args.metadata_path.strip()
-        )
-        writer = pydicom_seg.MultiClassWriter(
-            template=metadata_template,
-            skip_empty_slices=True,
-            skip_missing_segment=False,
-        )
-
-        dcm = writer.write(mask, good_file_paths[0])
-        # output_dcm_path = f"{args.output_dir}/{study_name}.dcm"
-        output_dcm_path = f"{args.output_dir}/prediction.dcm"
-        print(f"writing dicom output to {output_dcm_path}")
-        dcm.save_as(output_dcm_path)
-
-        if args.rt_struct_output:
-            rt_struct_output = f"{args.output_dir}/struct.dcm"
-            print(f"writing dicom struct to {rt_struct_output}")
-            from rtstruct_writers import save_mask_as_rtstruct
-
-            mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
-            with open(args.metadata_path.strip()) as o:
-                metadata = json.load(o)
-            segment_info = [
-                [
-                    element["SegmentDescription"],
-                    element["recommendedDisplayRGBValue"],
-                ]
-                for element in metadata["segmentAttributes"][0]
-            ]
-            save_mask_as_rtstruct(
-                mask_array,
-                os.path.dirname(good_file_paths[0][0]),
-                output_path=rt_struct_output,
-                segment_info=segment_info,
-            )
-
-    if args.proba_map is True:
-        class_idx = 1
-
-        input_proba_map = f"{args.output_dir}/volume.npz"
-        output_proba_map = f"{args.output_dir}/probabilities.nii.gz"
-        input_file = sitk.ReadImage(sitk_files[0])
-        proba_map = sitk.GetImageFromArray(
-            np.load(input_proba_map)["probabilities"][class_idx]
-        )
-        proba_map.CopyInformation(input_file)
-        threshold = sitk.ThresholdImageFilter()
-        threshold.SetLower(0.1)
-        threshold.SetUpper(1.0)
-        proba_map = threshold.Execute(proba_map)
-        print(f"writing probability map to {output_proba_map}")
-        sitk.WriteImage(proba_map, output_proba_map)
-
-        if args.is_dicom is True:
-            from pydicom_seg_writers import FractionalWriter
-
-            metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-                args.metadata_path.strip()
-            )
-            writer = FractionalWriter(
-                template=metadata_template,
-                skip_empty_slices=True,
-                skip_missing_segment=False,
-            )
-
-            dcm = writer.write(proba_map, good_file_paths[0])
-            output_dcm_path = f"{args.output_dir}/probabilities.dcm"
-            print(f"writing dicom output to {output_dcm_path}")
-            dcm.save_as(output_dcm_path)
-
     if args.save_nifti_inputs is True:
         for sitk_file in sitk_files:
             basename = os.path.basename(sitk_file)
@@ -290,3 +224,33 @@ if __name__ == "__main__":
             output_nifti = f"{args.output_dir}/{basename}.nii.gz"
             print(f"Copying Nifti to {output_nifti}")
             sitk.WriteImage(sitk.ReadImage(sitk_file), output_nifti)
+
+    if args.is_dicom is True:
+        status = export_to_dicom_seg(
+            mask,
+            metadata_path=args.metadata_path,
+            file_paths=good_file_paths,
+            output_dir=args.output_dir,
+        )
+        if "empty" in status:
+            print("Mask is empty, skipping DICOMseg/RTstruct")
+            exit()
+
+    if args.rt_struct_output:
+        export_to_dicom_struct(
+            mask,
+            metadata_path=args.metadata_path,
+            file_paths=good_file_paths,
+            output_dir=args.output_dir,
+        )
+
+    if args.proba_map is True:
+        proba_map = export_proba_map(sitk_files, args.output_dir)
+
+        if args.is_dicom is True:
+            export_fractional_dicom_seg(
+                mask,
+                metadata_path=args.metadata_path,
+                file_paths=good_file_paths,
+                output_dir=args.output_dir,
+            )

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import SimpleITK as sitk
 import pydicom_seg
+import json
 from glob import glob
 from typing import List, Dict
 from pydicom import dcmread
@@ -9,8 +10,10 @@ from pydicom import dcmread
 from typing import Sequence, Union
 
 
-def filter_by_bvalue(dicom_files: list, target_bvalue: int, exact: bool=False) -> list:
-    BVALUE_TAG = ('0018', '9087')
+def filter_by_bvalue(
+    dicom_files: list, target_bvalue: int, exact: bool = False
+) -> list:
+    BVALUE_TAG = ("0018", "9087")
     SIEMENS_BVALUE_TAG = ("0019", "100c")
     GE_BVALUE_TAG = ("0043", "1039")
     bvalues = []
@@ -25,17 +28,19 @@ def filter_by_bvalue(dicom_files: list, target_bvalue: int, exact: bool=False) -
             curr_bvalue = siemens_bvalue.value
         elif ge_bvalue is not None:
             curr_bvalue = ge_bvalue.value
-            v = str(v)
-            if "[" in v and "]" in v:
-                v = v.strip().strip("[").strip("]").split(",")
-                v = [int(x) for x in v]
-            if isinstance(v, list) is False:
-                v = v.split("\\")
-                v = str(v[0])
+            curr_bvalue = str(curr_bvalue)
+            if "[" in curr_bvalue and "]" in curr_bvalue:
+                curr_bvalue = curr_bvalue.strip().strip("[").strip("]").split(",")
+                curr_bvalue = [int(x) for x in curr_bvalue]
+            if isinstance(curr_bvalue, list) is False:
+                curr_bvalue = curr_bvalue.split("\\")
+                curr_bvalue = str(curr_bvalue[0])
             else:
-                v = str(v[0])
-            if len(v) > 5:
-                v = v[-4:]
+                curr_bvalue = str(curr_bvalue[0])
+            if len(curr_bvalue) > 5:
+                curr_bvalue = curr_bvalue[-4:]
+        if curr_bvalue is None:
+            curr_bvalue = 0
         bvalues.append(int(curr_bvalue))
     unique_bvalues = set(bvalues)
     if len(unique_bvalues) in [0, 1]:
@@ -46,6 +51,7 @@ def filter_by_bvalue(dicom_files: list, target_bvalue: int, exact: bool=False) -
     dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
     print(len(dicom_files))
     return dicom_files
+
 
 def resample_image_to_target(
     moving: sitk.Image,
@@ -94,15 +100,9 @@ def resample_image(
     original_size = sitk_image.GetSize()
 
     out_size = [
-        int(
-            np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))
-        ),
-        int(
-            np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))
-        ),
-        int(
-            np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))
-        ),
+        int(np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))),
+        int(np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))),
+        int(np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))),
     ]
 
     resample = sitk.ResampleImageFilter()
@@ -166,9 +166,7 @@ def dicom_orientation_to_sitk_direction(
     return R_sitk.flatten().tolist()
 
 
-def get_contiguous_arr_idxs(
-    positions: np.ndarray, ranking: np.ndarray
-) -> np.array:
+def get_contiguous_arr_idxs(positions: np.ndarray, ranking: np.ndarray) -> np.array:
     """
     Uses the ranking to find breaks in positions and returns the elements in
     L which belong to the first contiguous array. Assumes that positions is an
@@ -247,15 +245,14 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     orientation = list(map(float, orientation))
     orientation_sitk = dicom_orientation_to_sitk_direction(orientation)
     z_axis = 2
-    real_position = np.matmul(
-        position, np.array(orientation_sitk).reshape([3, 3])
-    )
+    real_position = np.matmul(position, np.array(orientation_sitk).reshape([3, 3]))
     z_position = np.sort(real_position[:, z_axis])
     z_spacing = np.median(np.diff(z_position))
     if np.isclose(z_spacing, 0) == True:
         raise RuntimeError(
-            f"Incorrect z-spacing information for {series_path}." + \
-                "This may be due to multiple slices having identical positions")
+            f"Incorrect z-spacing information for {series_path}."
+            + "This may be due to multiple slices having identical positions"
+        )
     pixel_spacing = [*f[0x0028, 0x0030].value, z_spacing]
     fs = sorted(fs, key=lambda x: float(x[0x0020, 0x0032].value[z_axis]))
 
@@ -289,7 +286,10 @@ def get_study_uid(dicom_dir: List[str]) -> str:
     Returns:
         str: string corresponding to study UID.
     """
-    return dcmread(glob(f"{dicom_dir}/*dcm")[0])[(0x0020, 0x000D)].value
+    dcm_files = glob(f"{dicom_dir}/*dcm")
+    if len(dcm_files) == 0:
+        raise RuntimeError(f"No dcm files in {dicom_dir}")
+    return dcmread(dcm_files[0])[(0x0020, 0x000D)].value
 
 
 def sitk_mask_to_dicom_seg(
@@ -311,3 +311,98 @@ def sitk_mask_to_dicom_seg(
     print(f"writing to {output_dcm_path}")
     dcm.save_as(output_dcm_path)
     return output_dcm_path
+
+
+def export_to_dicom_seg(
+    mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+):
+    import pydicom_seg
+
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    writer = pydicom_seg.MultiClassWriter(
+        template=metadata_template,
+        skip_empty_slices=True,
+        skip_missing_segment=False,
+    )
+
+    if sitk.GetArrayFromImage(mask).sum() == 0:
+        return "empty mask"
+    dcm = writer.write(mask, file_paths[0])
+    output_dcm_path = f"{output_dir}/prediction.dcm"
+    print(f"writing dicom output to {output_dcm_path}")
+    dcm.save_as(output_dcm_path)
+    return "success"
+
+
+def export_to_dicom_struct(
+    mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+):
+    from rtstruct_writers import save_mask_as_rtstruct
+
+    rt_struct_output = f"{output_dir}/struct.dcm"
+    print(f"writing dicom struct to {rt_struct_output}")
+
+    mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
+    if mask_array.sum() == 0:
+        return "empty mask"
+
+    with open(metadata_path.strip()) as o:
+        metadata = json.load(o)
+    segment_info = [
+        [
+            element["SegmentDescription"],
+            element["recommendedDisplayRGBValue"],
+        ]
+        for element in metadata["segmentAttributes"][0]
+    ]
+    save_mask_as_rtstruct(
+        mask_array,
+        os.path.dirname(file_paths[0][0]),
+        output_path=rt_struct_output,
+        segment_info=segment_info,
+    )
+
+    return "success"
+
+
+def export_proba_map(sitk_files: list[str], output_dir: str) -> sitk.Image:
+    class_idx = 1
+
+    input_proba_map = f"{output_dir}/volume.npz"
+    output_proba_map = f"{output_dir}/probabilities.nii.gz"
+    input_file = sitk.ReadImage(sitk_files[0])
+    proba_map = sitk.GetImageFromArray(
+        np.load(input_proba_map)["probabilities"][class_idx]
+    )
+    proba_map.CopyInformation(input_file)
+    threshold = sitk.ThresholdImageFilter()
+    threshold.SetLower(0.1)
+    threshold.SetUpper(1.0)
+    proba_map = threshold.Execute(proba_map)
+    print(f"writing probability map to {output_proba_map}")
+    sitk.WriteImage(proba_map, output_proba_map)
+
+    return proba_map
+
+
+def export_fractional_dicom_seg(
+    proba_map: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+):
+    from pydicom_seg_writers import FractionalWriter
+
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    writer = FractionalWriter(
+        template=metadata_template,
+        skip_empty_slices=True,
+        skip_missing_segment=False,
+    )
+
+    if sitk.GetArrayFromImage(proba_map).sum() > 0:
+        return "empty probability map"
+
+    dcm = writer.write(proba_map, file_paths[0])
+    output_dcm_path = f"{output_dir}/probabilities.dcm"
+    print(f"writing dicom output to {output_dcm_path}")
+    dcm.save_as(output_dcm_path)
+
+    return "success"
