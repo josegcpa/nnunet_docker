@@ -249,7 +249,7 @@ if __name__ == "__main__":
 
         if args.is_dicom is True:
             export_fractional_dicom_seg(
-                mask,
+                proba_map,
                 metadata_path=args.metadata_path,
                 file_paths=good_file_paths,
                 output_dir=args.output_dir,

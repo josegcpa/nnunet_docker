@@ -28,6 +28,8 @@ def filter_by_bvalue(
             curr_bvalue = siemens_bvalue.value
         elif ge_bvalue is not None:
             curr_bvalue = ge_bvalue.value
+            if isinstance(curr_bvalue, bytes):
+                curr_bvalue = curr_bvalue.decode()
             curr_bvalue = str(curr_bvalue)
             if "[" in curr_bvalue and "]" in curr_bvalue:
                 curr_bvalue = curr_bvalue.strip().strip("[").strip("]").split(",")
@@ -49,7 +51,6 @@ def filter_by_bvalue(
         raise RuntimeError("Requested b-value not available")
     best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[0]
     dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
-    print(len(dicom_files))
     return dicom_files
 
 
@@ -397,7 +398,7 @@ def export_fractional_dicom_seg(
         skip_missing_segment=False,
     )
 
-    if sitk.GetArrayFromImage(proba_map).sum() > 0:
+    if sitk.GetArrayFromImage(proba_map).sum() == 0:
         return "empty probability map"
 
     dcm = writer.write(proba_map, file_paths[0])
