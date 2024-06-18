@@ -6,13 +6,28 @@ import json
 from glob import glob
 from typing import List, Dict
 from pydicom import dcmread
+from scipy import ndimage
 
-from typing import Sequence, Union
+from typing import Sequence
 
 
 def filter_by_bvalue(
     dicom_files: list, target_bvalue: int, exact: bool = False
 ) -> list:
+    """
+    Selects the DICOM values with a b-value which is exactly or closest to
+    target_bvalue (depending on whether exact is True or False).
+
+    Args:
+        dicom_files (list): list of pydicom file objects.
+        target_bvalues (int): the expected b-value.
+        exact (bool, optional): whether the b-value matching is to be exact
+            (raises error if exact target_bvalue is not available) or
+            approximate returns the b-value which is closest to target_bvalue.
+
+    Returns:
+        list: list of b-value-filtered pydicom file objects.
+    """
     BVALUE_TAG = ("0018", "9087")
     SIEMENS_BVALUE_TAG = ("0019", "100c")
     GE_BVALUE_TAG = ("0043", "1039")
@@ -124,7 +139,7 @@ def resample_image(
     return output
 
 
-def mode(a: np.ndarray) -> Union[int, float]:
+def mode(a: np.ndarray) -> int | float:
     """
     Calculates the mode of an array.
 
@@ -132,13 +147,26 @@ def mode(a: np.ndarray) -> Union[int, float]:
         a (np.ndarray): a numpy array.
 
     Returns:
-        (Union[int,float]): the mode of a.
+        int | float: the mode of a.
     """
     u, c = np.unique(a, return_counts=True)
     return u[np.argmax(c)]
 
 
-def get_origin(positions, z_axis=2):
+def get_origin(positions: np.ndarray, z_axis: int = 2) -> np.ndarray:
+    """
+    Returns the origin position from an array of positions (minimum for a given
+    z-axis).
+
+    Args:
+        positions (np.ndarray): array containing all the positions in a given
+            set of arrays.
+        z_axis (int, optional): index corresponding to the z-axis. Defaults to
+            2.
+
+    Returns:
+        np.ndarray: origin of the array.
+    """
     origin = positions[positions[:, z_axis].argmin()]
     return origin
 
@@ -207,7 +235,8 @@ def get_contiguous_arr_idxs(positions: np.ndarray, ranking: np.ndarray) -> np.ar
 
 
 def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
-    """Reads a DICOM file as SITK, using z-spacing to order slices in the
+    """
+    Reads a DICOM file as SITK, using z-spacing to order slices in the
     volume.
 
     Args:
@@ -279,7 +308,8 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
 
 
 def get_study_uid(dicom_dir: List[str]) -> str:
-    """Returns the study UID field from a random file in dicom_dir.
+    """
+    Returns the study UID field from a random file in dicom_dir.
 
     Args:
         dicom_dir (str): directory with dicom (.dcm) files.
@@ -293,30 +323,23 @@ def get_study_uid(dicom_dir: List[str]) -> str:
     return dcmread(dcm_files[0])[(0x0020, 0x000D)].value
 
 
-def sitk_mask_to_dicom_seg(
-    mask: sitk.Image,
-    metadata_path: str,
-    series_paths: List[str],
-    study_name: str,
-    output_dir: str,
-) -> str:
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path)
-    writer = pydicom_seg.MultiClassWriter(
-        template=metadata_template,
-        skip_empty_slices=True,
-        skip_missing_segment=False,
-    )
-
-    dcm = writer.write(mask, glob(os.path.join(series_paths[0], "*")))
-    output_dcm_path = f"{output_dir.strip()}/{study_name}.dcm"
-    print(f"writing to {output_dcm_path}")
-    dcm.save_as(output_dcm_path)
-    return output_dcm_path
-
-
 def export_to_dicom_seg(
     mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
-):
+) -> str:
+    """
+    Exports a SITK image mask as a DICOM segmentation object.
+
+    Args:
+        mask (sitk.Image): an SITK file object corresponding to a mask.
+        metadata_path (str): path to metadata template file.
+        file_paths (list[str]): list of DICOM file paths corresponding to the
+            original series.
+        output_dir (str): path to output directory.
+
+    Returns:
+        str: "success" if the process was successful, "empty mask" if the SITK
+            mask contained no values.
+    """
     import pydicom_seg
 
     metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
@@ -337,7 +360,21 @@ def export_to_dicom_seg(
 
 def export_to_dicom_struct(
     mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
-):
+) -> str:
+    """
+    Exports a SITK image mask as a DICOM struct object.
+
+    Args:
+        mask (sitk.Image): an SITK file object corresponding to a mask.
+        metadata_path (str): path to metadata template file.
+        file_paths (list[str]): list of DICOM file paths corresponding to the
+            original series.
+        output_dir (str): path to output directory.
+
+    Returns:
+        str: "success" if the process was successful, "empty mask" if the SITK
+            mask contained no values.
+    """
     from rtstruct_writers import save_mask_as_rtstruct
 
     rt_struct_output = f"{output_dir}/struct.dcm"
@@ -366,18 +403,43 @@ def export_to_dicom_struct(
     return "success"
 
 
-def export_proba_map(sitk_files: list[str], output_dir: str) -> sitk.Image:
+def export_proba_map(
+    sitk_files: list[str],
+    output_dir: str,
+    proba_threshold: float | None = 0.1,
+    min_confidence: float | None = None,
+) -> sitk.Image:
+    """
+    Exports a SITK probability mask. Applies a candidate extraction protocol
+    (i.e. filtering probabilities above proba_threshold, applying connected
+    component analysis and filtering out objects whose maximum probability is
+    lower than min_confidence).
+
+    Args:
+        mask (sitk.Image): an SITK file object corresponding to a mask.
+        metadata_path (str): path to metadata template file.
+        proba_threshold (float, optional): sets values below this value to 0.
+        min_confidence (float, optional): removes objects whose maximum
+            probability is lower than this value.
+
+    Returns:
+        sitk.Image: returns the probability mask after the candidate extraction
+            protocol.
+    """
     class_idx = 1
 
     input_proba_map = f"{output_dir}/volume.npz"
     output_proba_map = f"{output_dir}/probabilities.nii.gz"
     input_file = sitk.ReadImage(sitk_files[0])
-    proba_map = sitk.GetImageFromArray(
-        np.load(input_proba_map)["probabilities"][class_idx]
-    )
+    proba_array = np.load(input_proba_map)["probabilities"][class_idx]
+    if min_confidence is not None:
+        proba_array, _, _ = extract_lesion_candidates(
+            proba_array, threshold=proba_threshold, min_confidence=min_confidence
+        )
+    proba_map = sitk.GetImageFromArray(proba_array)
     proba_map.CopyInformation(input_file)
     threshold = sitk.ThresholdImageFilter()
-    threshold.SetLower(0.1)
+    threshold.SetLower(float(proba_threshold))
     threshold.SetUpper(1.0)
     proba_map = threshold.Execute(proba_map)
     print(f"writing probability map to {output_proba_map}")
@@ -389,6 +451,20 @@ def export_proba_map(sitk_files: list[str], output_dir: str) -> sitk.Image:
 def export_fractional_dicom_seg(
     proba_map: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
 ):
+    """
+    Exports a SITK image mask as a fractional DICOM segmentation object.
+
+    Args:
+        mask (sitk.Image): an SITK file object corresponding to a mask.
+        metadata_path (str): path to metadata template file.
+        file_paths (list[str]): list of DICOM file paths corresponding to the
+            original series.
+        output_dir (str): path to output directory.
+
+    Returns:
+        str: "success" if the process was successful, "empty mask" if the SITK
+            mask contained no values.
+    """
     from pydicom_seg_writers import FractionalWriter
 
     metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
@@ -407,3 +483,71 @@ def export_fractional_dicom_seg(
     dcm.save_as(output_dcm_path)
 
     return "success"
+
+
+def extract_lesion_candidates(
+    softmax: np.ndarray,
+    threshold: float = 0.10,
+    min_confidence: float = None,
+    min_voxels_detection: int = 10,
+    max_prob_round_decimals: int = 4,
+) -> tuple[np.ndarray, list[tuple[int, float]], np.ndarray]:
+    """
+    Lesion candidate protocol as implemented in [1]. Essentially:
+
+        1. Clips probabilities to be above a threshold
+        2. Detects connected components
+        3. Filters based on candidate size
+        4. Filters based on maximum probability value
+        5. Returns the connected components
+
+    [1] https://github.com/DIAGNijmegen/Report-Guided-Annotation/blob/9eef43d3a8fb0d0cb3cfca3f51fda91daa94f988/src/report_guided_annotation/extract_lesion_candidates.py#L17
+
+    Args:
+        softmax (np.ndarray): array with softmax probability values.
+        threshold (float, optional): threshold below which values are set to 0.
+            Defaults to 0.10.
+        min_confidence (float, optional): minimum maximum probability value for
+            each object after connected component analysis. Defaults to None
+            (no filtering).
+        min_voxels_detection (int, optional): minimum object size in voxels.
+            Defaults to 10.
+        max_prob_round_decimals (int, optional): maximum number of decimal
+            places. Defaults to 4.
+
+    Returns:
+        tuple[np.ndarray, list[tuple[int, float]], np.ndarray]: the output
+            probability map, a list of confidence values, and the connected
+            components array as returned by ndimage.label.
+    """
+    all_hard_blobs = np.zeros_like(softmax)
+    confidences = []
+    clipped_softmax = softmax.copy()
+    clipped_softmax[softmax < threshold] = 0
+    blobs_index, num_blobs = ndimage.label(
+        clipped_softmax, structure=np.ones((3, 3, 3))
+    )
+    if min_confidence is None:
+        min_confidence = threshold
+
+    for idx in range(1, num_blobs + 1):
+        hard_mask = np.zeros_like(blobs_index)
+        hard_mask[blobs_index == idx] = 1
+
+        hard_blob = hard_mask * clipped_softmax
+        max_prob = np.max(hard_blob)
+
+        if np.count_nonzero(hard_mask) <= min_voxels_detection:
+            blobs_index[hard_mask.astype(bool)] = 0
+            continue
+
+        elif max_prob < min_confidence:
+            blobs_index[hard_mask.astype(bool)] = 0
+            continue
+
+        if max_prob_round_decimals is not None:
+            max_prob = np.round(max_prob, max_prob_round_decimals)
+        hard_blob[hard_blob > 0] = clipped_softmax[hard_blob > 0]  # max_prob
+        all_hard_blobs += hard_blob
+        confidences.append((idx, max_prob))
+    return all_hard_blobs, confidences, blobs_index

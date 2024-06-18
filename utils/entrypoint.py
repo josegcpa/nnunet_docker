@@ -2,8 +2,6 @@ import os
 import SimpleITK as sitk
 import torch
 import random
-import json
-import numpy as np
 from glob import glob
 from utils import (
     resample_image_to_target,
@@ -176,6 +174,18 @@ if __name__ == "__main__":
         action="store_true",
     )
     parser.add_argument(
+        "--proba_threshold",
+        help="Sets probabilities in proba_map lower than proba_threhosld to 0",
+        type=float,
+        default=0.1,
+    )
+    parser.add_argument(
+        "--min_confidence",
+        help="Removes objects whose max prob is smaller than min_confidence",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
         "--rt_struct_output",
         help="Produces a DICOM RT Struct file (struct.dcm in output_dir)",
         action="store_true",
@@ -245,7 +255,12 @@ if __name__ == "__main__":
         )
 
     if args.proba_map is True:
-        proba_map = export_proba_map(sitk_files, args.output_dir)
+        proba_map = export_proba_map(
+            sitk_files,
+            args.output_dir,
+            proba_threshold=args.proba_threshold,
+            min_confidence=args.min_confidence,
+        )
 
         if args.is_dicom is True:
             export_fractional_dicom_seg(
