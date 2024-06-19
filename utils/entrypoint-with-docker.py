@@ -164,7 +164,10 @@ if __name__ == "__main__":
     docker_command = [
         "docker run",
         " ".join(
-            [f"-v {k}:{volumes[k]['bind']}:{volumes[k]['mode']}" for k in volumes]
+            [
+                f"-v {k}:{volumes[k]['bind']}:{volumes[k]['mode']}"
+                for k in volumes
+            ]
         ),
         f"--user {user}",
         "--rm",

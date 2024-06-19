@@ -25,6 +25,10 @@ def main(
     use_folds: tuple[int] = (0,),
     study_name: str = None,
     proba_map: bool = False,
+    proba_threshold: float = 0.1,
+    min_confidence: float = None,
+    intersect_with: str | sitk.Image = None,
+    min_iou: float = 0.1,
 ):
 
     os.environ["nnUNet_preprocessed"] = "tmp/preproc"
@@ -89,11 +93,26 @@ def main(
         num_processes_segmentation_export=1,
     )
 
-    mask_path = f"{output_dir}/volume{term}"
-    output_mask_path = f"{output_dir}/prediction.nii.gz"
-    sitk.WriteImage(sitk.ReadImage(mask_path), output_mask_path)
+    proba_map = export_proba_map(
+        prediction_files,
+        output_dir=output_dir,
+        min_confidence=min_confidence,
+        proba_threshold=proba_threshold,
+        intersect_with=intersect_with,
+        min_iou=min_iou,
+    )
 
-    return prediction_files, output_mask_path, study_name, good_file_paths
+    output_mask_path = f"{output_dir}/prediction.nii.gz"
+    mask = sitk.Cast(proba_map > 0.5, sitk.sitkUInt16)
+    sitk.WriteImage(mask, output_mask_path)
+
+    return (
+        prediction_files,
+        output_mask_path,
+        study_name,
+        good_file_paths,
+        proba_map,
+    )
 
 
 if __name__ == "__main__":
@@ -197,6 +216,25 @@ if __name__ == "__main__":
             output_dir)",
         action="store_true",
     )
+    parser.add_argument(
+        "--intersect_with",
+        help="Calculates the IoU with the sitk mask image in this path and uses\
+            this value to filter images such that IoU < --min_iou are ruled out.",
+        default=None,
+        type=str,
+    )
+    parser.add_argument(
+        "--min_iou",
+        help="Minimum intersection over the union to keep a candidate.",
+        default=0.1,
+        type=float,
+    )
+    parser.add_argument(
+        "--suffix",
+        help="Adds a suffix (_suffix) to the outputs if specified.",
+        default=None,
+        type=str,
+    )
 
     args = parser.parse_args()
 
@@ -211,7 +249,7 @@ if __name__ == "__main__":
     folds = []
     for f in args.folds:
         folds.append(int(f))
-    sitk_files, mask_path, study_name, good_file_paths = main(
+    sitk_files, mask_path, study_name, good_file_paths, proba_map = main(
         model_path=args.model_path.strip(),
         series_paths=series_paths,
         checkpoint_name=args.checkpoint_name.strip(),
@@ -222,9 +260,24 @@ if __name__ == "__main__":
         use_mirroring=args.tta,
         study_name=args.study_uid,
         proba_map=args.proba_map,
+        proba_threshold=args.proba_threshold,
+        min_confidence=args.min_confidence,
+        intersect_with=args.intersect_with,
+        min_iou=args.min_iou,
     )
 
     mask = sitk.ReadImage(mask_path)
+
+    suffix = args.suffix
+    output_names = {
+        "prediction": (
+            "prediction" if suffix is None else f"prediction_{suffix}"
+        ),
+        "probabilities": (
+            "probabilities" if suffix is None else f"proba_{suffix}"
+        ),
+        "struct": "struct" if suffix is None else f"struct_{suffix}",
+    }
 
     if args.save_nifti_inputs is True:
         for sitk_file in sitk_files:
@@ -241,6 +294,7 @@ if __name__ == "__main__":
             metadata_path=args.metadata_path,
             file_paths=good_file_paths,
             output_dir=args.output_dir,
+            output_file_name=output_names["prediction"],
         )
         if "empty" in status:
             print("Mask is empty, skipping DICOMseg/RTstruct")
@@ -252,20 +306,15 @@ if __name__ == "__main__":
             metadata_path=args.metadata_path,
             file_paths=good_file_paths,
             output_dir=args.output_dir,
+            output_file_name=output_names["struct"],
         )
 
     if args.proba_map is True:
-        proba_map = export_proba_map(
-            sitk_files,
-            args.output_dir,
-            proba_threshold=args.proba_threshold,
-            min_confidence=args.min_confidence,
-        )
-
         if args.is_dicom is True:
             export_fractional_dicom_seg(
                 proba_map,
                 metadata_path=args.metadata_path,
                 file_paths=good_file_paths,
                 output_dir=args.output_dir,
+                output_file_name=output_names["probabilities"],
             )

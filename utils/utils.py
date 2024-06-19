@@ -47,7 +47,9 @@ def filter_by_bvalue(
                 curr_bvalue = curr_bvalue.decode()
             curr_bvalue = str(curr_bvalue)
             if "[" in curr_bvalue and "]" in curr_bvalue:
-                curr_bvalue = curr_bvalue.strip().strip("[").strip("]").split(",")
+                curr_bvalue = (
+                    curr_bvalue.strip().strip("[").strip("]").split(",")
+                )
                 curr_bvalue = [int(x) for x in curr_bvalue]
             if isinstance(curr_bvalue, list) is False:
                 curr_bvalue = curr_bvalue.split("\\")
@@ -64,7 +66,9 @@ def filter_by_bvalue(
         return dicom_files
     if (target_bvalue not in unique_bvalues) and (exact is True):
         raise RuntimeError("Requested b-value not available")
-    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[0]
+    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[
+        0
+    ]
     dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
     return dicom_files
 
@@ -116,9 +120,15 @@ def resample_image(
     original_size = sitk_image.GetSize()
 
     out_size = [
-        int(np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))),
-        int(np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))),
-        int(np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))),
+        int(
+            np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))
+        ),
+        int(
+            np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))
+        ),
+        int(
+            np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))
+        ),
     ]
 
     resample = sitk.ResampleImageFilter()
@@ -195,7 +205,9 @@ def dicom_orientation_to_sitk_direction(
     return R_sitk.flatten().tolist()
 
 
-def get_contiguous_arr_idxs(positions: np.ndarray, ranking: np.ndarray) -> np.array:
+def get_contiguous_arr_idxs(
+    positions: np.ndarray, ranking: np.ndarray
+) -> np.array:
     """
     Uses the ranking to find breaks in positions and returns the elements in
     L which belong to the first contiguous array. Assumes that positions is an
@@ -275,7 +287,9 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     orientation = list(map(float, orientation))
     orientation_sitk = dicom_orientation_to_sitk_direction(orientation)
     z_axis = 2
-    real_position = np.matmul(position, np.array(orientation_sitk).reshape([3, 3]))
+    real_position = np.matmul(
+        position, np.array(orientation_sitk).reshape([3, 3])
+    )
     z_position = np.sort(real_position[:, z_axis])
     z_spacing = np.median(np.diff(z_position))
     if np.isclose(z_spacing, 0) == True:
@@ -324,7 +338,11 @@ def get_study_uid(dicom_dir: List[str]) -> str:
 
 
 def export_to_dicom_seg(
-    mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+    mask: sitk.Image,
+    metadata_path: str,
+    file_paths: list[str],
+    output_dir: str,
+    output_file_name: str = "prediction",
 ) -> str:
     """
     Exports a SITK image mask as a DICOM segmentation object.
@@ -335,6 +353,8 @@ def export_to_dicom_seg(
         file_paths (list[str]): list of DICOM file paths corresponding to the
             original series.
         output_dir (str): path to output directory.
+        output_file_name (str, optional): output file name. Defaults to
+            "prediction".
 
     Returns:
         str: "success" if the process was successful, "empty mask" if the SITK
@@ -342,7 +362,9 @@ def export_to_dicom_seg(
     """
     import pydicom_seg
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+        metadata_path.strip()
+    )
     writer = pydicom_seg.MultiClassWriter(
         template=metadata_template,
         skip_empty_slices=True,
@@ -352,14 +374,18 @@ def export_to_dicom_seg(
     if sitk.GetArrayFromImage(mask).sum() == 0:
         return "empty mask"
     dcm = writer.write(mask, file_paths[0])
-    output_dcm_path = f"{output_dir}/prediction.dcm"
+    output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom output to {output_dcm_path}")
     dcm.save_as(output_dcm_path)
     return "success"
 
 
 def export_to_dicom_struct(
-    mask: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+    mask: sitk.Image,
+    metadata_path: str,
+    file_paths: list[str],
+    output_dir: str,
+    output_file_name: str = "struct",
 ) -> str:
     """
     Exports a SITK image mask as a DICOM struct object.
@@ -370,6 +396,8 @@ def export_to_dicom_struct(
         file_paths (list[str]): list of DICOM file paths corresponding to the
             original series.
         output_dir (str): path to output directory.
+        output_file_name (str, optional): output file name. Defaults to
+            "prediction".
 
     Returns:
         str: "success" if the process was successful, "empty mask" if the SITK
@@ -377,7 +405,7 @@ def export_to_dicom_struct(
     """
     from rtstruct_writers import save_mask_as_rtstruct
 
-    rt_struct_output = f"{output_dir}/struct.dcm"
+    rt_struct_output = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom struct to {rt_struct_output}")
 
     mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
@@ -408,6 +436,10 @@ def export_proba_map(
     output_dir: str,
     proba_threshold: float | None = 0.1,
     min_confidence: float | None = None,
+    intersect_with: str | sitk.Image = None,
+    min_iou: float = 0.1,
+    input_file_name: str = "volume",
+    output_file_name: str = "probabilities",
 ) -> sitk.Image:
     """
     Exports a SITK probability mask. Applies a candidate extraction protocol
@@ -421,6 +453,16 @@ def export_proba_map(
         proba_threshold (float, optional): sets values below this value to 0.
         min_confidence (float, optional): removes objects whose maximum
             probability is lower than this value.
+        intersect_with (str | sitk.Image, optional): calculates the
+            intersection of each candidate with the image specified in
+            intersect_with. If the intersection is larger than
+            min_intersection, the candidate is kept; otherwise it is discarded.
+            Defaults to None.
+        min_iou (float, optional): minimum intersection over the union to keep
+            candidate. Defaults to 0.1.
+        input_file_name (str, optional): input file name. Defaults to "volume".
+        output_file_name (str, optional): output file name. Defaults to
+            "probabilities".
 
     Returns:
         sitk.Image: returns the probability mask after the candidate extraction
@@ -428,14 +470,17 @@ def export_proba_map(
     """
     class_idx = 1
 
-    input_proba_map = f"{output_dir}/volume.npz"
-    output_proba_map = f"{output_dir}/probabilities.nii.gz"
+    input_proba_map = f"{output_dir}/{input_file_name}.npz"
+    output_proba_map = f"{output_dir}/{output_file_name}.nii.gz"
     input_file = sitk.ReadImage(sitk_files[0])
     proba_array = np.load(input_proba_map)["probabilities"][class_idx]
-    if min_confidence is not None:
-        proba_array, _, _ = extract_lesion_candidates(
-            proba_array, threshold=proba_threshold, min_confidence=min_confidence
-        )
+    proba_array, _, _ = extract_lesion_candidates(
+        proba_array,
+        threshold=proba_threshold,
+        min_confidence=min_confidence,
+        intersect_with=intersect_with,
+        min_iou=min_iou,
+    )
     proba_map = sitk.GetImageFromArray(proba_array)
     proba_map.CopyInformation(input_file)
     threshold = sitk.ThresholdImageFilter()
@@ -449,7 +494,11 @@ def export_proba_map(
 
 
 def export_fractional_dicom_seg(
-    proba_map: sitk.Image, metadata_path: str, file_paths: list[str], output_dir: str
+    proba_map: sitk.Image,
+    metadata_path: str,
+    file_paths: list[str],
+    output_dir: str,
+    output_file_name: str = "probabilities",
 ):
     """
     Exports a SITK image mask as a fractional DICOM segmentation object.
@@ -460,6 +509,8 @@ def export_fractional_dicom_seg(
         file_paths (list[str]): list of DICOM file paths corresponding to the
             original series.
         output_dir (str): path to output directory.
+        output_file_name (str, optional): output file name. Defaults to
+            "probabilities".
 
     Returns:
         str: "success" if the process was successful, "empty mask" if the SITK
@@ -467,7 +518,9 @@ def export_fractional_dicom_seg(
     """
     from pydicom_seg_writers import FractionalWriter
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+        metadata_path.strip()
+    )
     writer = FractionalWriter(
         template=metadata_template,
         skip_empty_slices=True,
@@ -478,11 +531,27 @@ def export_fractional_dicom_seg(
         return "empty probability map"
 
     dcm = writer.write(proba_map, file_paths[0])
-    output_dcm_path = f"{output_dir}/probabilities.dcm"
+    output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom output to {output_dcm_path}")
     dcm.save_as(output_dcm_path)
 
     return "success"
+
+
+def calculate_iou(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Calculates the intersection of the union between arrays a and b.
+
+    Args:
+        a (np.ndarray): array.
+        b (np.ndarray): array.
+
+    Returns:
+        float: float value for the intersection over the union.
+    """
+    intersection = np.logical_and(a == 1, a == b).sum()
+    union = a.sum() + b.sum() - intersection
+    return intersection / union
 
 
 def extract_lesion_candidates(
@@ -491,6 +560,8 @@ def extract_lesion_candidates(
     min_confidence: float = None,
     min_voxels_detection: int = 10,
     max_prob_round_decimals: int = 4,
+    intersect_with: str | sitk.Image = None,
+    min_iou: float = 0.1,
 ) -> tuple[np.ndarray, list[tuple[int, float]], np.ndarray]:
     """
     Lesion candidate protocol as implemented in [1]. Essentially:
@@ -514,6 +585,13 @@ def extract_lesion_candidates(
             Defaults to 10.
         max_prob_round_decimals (int, optional): maximum number of decimal
             places. Defaults to 4.
+        intersect_with (str | sitk.Image, optional): calculates the
+            intersection of each candidate with the image specified in
+            intersect_with. If the intersection is larger than
+            min_intersection, the candidate is kept; otherwise it is discarded.
+            Defaults to None.
+        min_iou (float, optional): minimum intersection over the union to keep
+            candidate. Defaults to 0.1.
 
     Returns:
         tuple[np.ndarray, list[tuple[int, float]], np.ndarray]: the output
@@ -530,6 +608,10 @@ def extract_lesion_candidates(
     if min_confidence is None:
         min_confidence = threshold
 
+    if intersect_with is not None:
+        if isinstance(intersect_with, str):
+            intersect_with = sitk.ReadImage(intersect_with)
+
     for idx in range(1, num_blobs + 1):
         hard_mask = np.zeros_like(blobs_index)
         hard_mask[blobs_index == idx] = 1
@@ -544,6 +626,12 @@ def extract_lesion_candidates(
         elif max_prob < min_confidence:
             blobs_index[hard_mask.astype(bool)] = 0
             continue
+
+        if intersect_with is not None:
+            iou = calculate_iou(intersect_with, hard_mask)
+            if iou < min_iou:
+                blobs_index[hard_mask.astype(bool)] = 0
+                continue
 
         if max_prob_round_decimals is not None:
             max_prob = np.round(max_prob, max_prob_round_decimals)
