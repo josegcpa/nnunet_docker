@@ -47,7 +47,9 @@ options:
   --proba_map, -p       Produces a Nifti format probability map (probabilities.nii.gz in output_dir)
   --rt_struct_output    Produces a DICOM RT Struct file (struct.dcm in output_dir)
   --save_nifti_inputs, -S
-                        Moves Nifti inputs to output folder (volume_XXXX.nii.gz in output_dir)```
+                        Moves Nifti inputs to output folder (volume_XXXX.nii.gz in output_dir)
+
+```
 
 Example:
 
