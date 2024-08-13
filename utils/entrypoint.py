@@ -28,7 +28,7 @@ def main(
     proba_threshold: float = 0.1,
     min_confidence: float = None,
     intersect_with: str | sitk.Image = None,
-    min_iou: float = 0.1,
+    min_intersection: float = 0.1,
 ):
 
     os.environ["nnUNet_preprocessed"] = "tmp/preproc"
@@ -99,7 +99,7 @@ def main(
         min_confidence=min_confidence,
         proba_threshold=proba_threshold,
         intersect_with=intersect_with,
-        min_iou=min_iou,
+        min_intersection=min_intersection,
     )
 
     output_mask_path = f"{output_dir}/prediction.nii.gz"
@@ -221,12 +221,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--intersect_with",
         help="Calculates the IoU with the sitk mask image in this path and uses\
-            this value to filter images such that IoU < --min_iou are ruled out.",
+            this value to filter images such that IoU < --min_intersection are ruled out.",
         default=None,
         type=str,
     )
     parser.add_argument(
-        "--min_iou",
+        "--min_intersection",
         help="Minimum intersection over the union to keep a candidate.",
         default=0.1,
         type=float,
@@ -265,7 +265,7 @@ if __name__ == "__main__":
         proba_threshold=args.proba_threshold,
         min_confidence=args.min_confidence,
         intersect_with=args.intersect_with,
-        min_iou=args.min_iou,
+        min_intersection=args.min_intersection,
     )
 
     mask = sitk.ReadImage(mask_path)
