@@ -437,9 +437,10 @@ def export_proba_map(
     proba_threshold: float | None = 0.1,
     min_confidence: float | None = None,
     intersect_with: str | sitk.Image = None,
-    min_iou: float = 0.1,
+    min_overlap: float = 0.1,
     input_file_name: str = "volume",
     output_file_name: str = "probabilities",
+    class_idx: int | list[int] = 1,
 ) -> sitk.Image:
     """
     Exports a SITK probability mask. Applies a candidate extraction protocol
@@ -458,28 +459,32 @@ def export_proba_map(
             intersect_with. If the intersection is larger than
             min_intersection, the candidate is kept; otherwise it is discarded.
             Defaults to None.
-        min_iou (float, optional): minimum intersection over the union to keep
+        min_overlap (float, optional): minimum intersection over the union to keep
             candidate. Defaults to 0.1.
         input_file_name (str, optional): input file name. Defaults to "volume".
         output_file_name (str, optional): output file name. Defaults to
             "probabilities".
+        class_idx (int | list[int], optional): class index for output probability.
 
     Returns:
         sitk.Image: returns the probability mask after the candidate extraction
             protocol.
     """
-    class_idx = 1
 
     input_proba_map = f"{output_dir}/{input_file_name}.npz"
     output_proba_map = f"{output_dir}/{output_file_name}.nii.gz"
     input_file = sitk.ReadImage(sitk_files[0])
-    proba_array = np.load(input_proba_map)["probabilities"][class_idx]
+    proba_array: np.ndarray = np.load(input_proba_map)["probabilities"]
+    if isinstance(class_idx, int):
+        proba_array = proba_array[class_idx]
+    elif isinstance(class_idx, (list, tuple)):
+        proba_array = proba_array[class_idx].sum(0)
     proba_array, _, _ = extract_lesion_candidates(
         proba_array,
         threshold=proba_threshold,
         min_confidence=min_confidence,
         intersect_with=intersect_with,
-        min_iou=min_iou,
+        min_overlap=min_overlap,
     )
     proba_map = sitk.GetImageFromArray(proba_array)
     proba_map.CopyInformation(input_file)
@@ -553,6 +558,21 @@ def calculate_iou(a: np.ndarray, b: np.ndarray) -> float:
     union = a.sum() + b.sum() - intersection
     return intersection / union
 
+def calculate_iou_a_over_b(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Calculates how much of a overlaps with b.
+
+    Args:
+        a (np.ndarray): array.
+        b (np.ndarray): array.
+
+    Returns:
+        float: float value for the intersection over the union.
+    """
+    intersection = np.logical_and(a == 1, a == b).sum()
+    union = a.sum()
+    return intersection / union
+
 
 def extract_lesion_candidates(
     softmax: np.ndarray,
@@ -560,8 +580,8 @@ def extract_lesion_candidates(
     min_confidence: float = None,
     min_voxels_detection: int = 10,
     max_prob_round_decimals: int = 4,
-    intersect_with: str | sitk.Image = None,
-    min_iou: float = 0.1,
+    intersect_with: str |np.ndarray | sitk.Image = None,
+    min_overlap: float = 0.1,
 ) -> tuple[np.ndarray, list[tuple[int, float]], np.ndarray]:
     """
     Lesion candidate protocol as implemented in [1]. Essentially:
@@ -590,7 +610,7 @@ def extract_lesion_candidates(
             intersect_with. If the intersection is larger than
             min_intersection, the candidate is kept; otherwise it is discarded.
             Defaults to None.
-        min_iou (float, optional): minimum intersection over the union to keep
+        min_overlap (float, optional): minimum intersection over the union to keep
             candidate. Defaults to 0.1.
 
     Returns:
@@ -611,6 +631,8 @@ def extract_lesion_candidates(
     if intersect_with is not None:
         if isinstance(intersect_with, str):
             intersect_with = sitk.ReadImage(intersect_with)
+        if isinstance(intersect_with, sitk.Image):
+            intersect_with = sitk.GetArrayFromImage(intersect_with)
 
     for idx in range(1, num_blobs + 1):
         hard_mask = np.zeros_like(blobs_index)
@@ -628,8 +650,8 @@ def extract_lesion_candidates(
             continue
 
         if intersect_with is not None:
-            iou = calculate_iou(intersect_with, hard_mask)
-            if iou < min_iou:
+            iou = calculate_iou_a_over_b(hard_mask, intersect_with)
+            if iou < min_overlap:
                 blobs_index[hard_mask.astype(bool)] = 0
                 continue
 

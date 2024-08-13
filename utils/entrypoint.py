@@ -106,6 +106,8 @@ def main(
     mask = sitk.Cast(proba_map > 0.5, sitk.sitkUInt16)
     sitk.WriteImage(mask, output_mask_path)
 
+    del predictor
+
     return (
         prediction_files,
         output_mask_path,

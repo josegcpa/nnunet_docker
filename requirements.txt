@@ -1,5 +1,9 @@
-pydicom==2.4.2
+fastapi==0.112.0
+nnunetv2==2.5.1
+pydantic==2.8.2
+pydicom==2.4.4
 pydicom-seg==0.4.1
-SimpleITK==2.2.1
-nnunetv2==2.2.1
+PyYAML==6.0.2
+SimpleITK==2.3.1
+tqdm==4.66.5
 rt_utils

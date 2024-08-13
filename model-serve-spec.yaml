@@ -1,0 +1,12 @@
+---
+model_folder: /home/ccig/Desktop/Nuno/datasets/nnUNet_data/nnUNet_results
+models:
+  Dataset045_ProstateAll:
+    name: Dataset045_ProstateAll
+    metadata: metadata_templates/whole-prostate.json
+  Dataset068_AgressiveDiseasePCPNetMP:
+    name: Dataset068_AgressiveDiseasePCPNetMP
+    metadata: metadata_templates/prostate-lesion.json
+  Dataset051_ProstateAllZones:
+    name: Dataset051_ProstateAllZones
+    metadata: metadata_templates/prostate-zones.json
