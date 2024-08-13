@@ -437,7 +437,7 @@ def export_proba_map(
     proba_threshold: float | None = 0.1,
     min_confidence: float | None = None,
     intersect_with: str | sitk.Image = None,
-    min_overlap: float = 0.1,
+    min_intersection: float = 0.1,
     input_file_name: str = "volume",
     output_file_name: str = "probabilities",
     class_idx: int | list[int] = 1,
@@ -459,7 +459,7 @@ def export_proba_map(
             intersect_with. If the intersection is larger than
             min_intersection, the candidate is kept; otherwise it is discarded.
             Defaults to None.
-        min_overlap (float, optional): minimum intersection over the union to keep
+        min_intersection (float, optional): minimum intersection over the union to keep
             candidate. Defaults to 0.1.
         input_file_name (str, optional): input file name. Defaults to "volume".
         output_file_name (str, optional): output file name. Defaults to
@@ -484,7 +484,7 @@ def export_proba_map(
         threshold=proba_threshold,
         min_confidence=min_confidence,
         intersect_with=intersect_with,
-        min_overlap=min_overlap,
+        min_intersection=min_intersection,
     )
     proba_map = sitk.GetImageFromArray(proba_array)
     proba_map.CopyInformation(input_file)
@@ -558,6 +558,7 @@ def calculate_iou(a: np.ndarray, b: np.ndarray) -> float:
     union = a.sum() + b.sum() - intersection
     return intersection / union
 
+
 def calculate_iou_a_over_b(a: np.ndarray, b: np.ndarray) -> float:
     """
     Calculates how much of a overlaps with b.
@@ -580,8 +581,8 @@ def extract_lesion_candidates(
     min_confidence: float = None,
     min_voxels_detection: int = 10,
     max_prob_round_decimals: int = 4,
-    intersect_with: str |np.ndarray | sitk.Image = None,
-    min_overlap: float = 0.1,
+    intersect_with: str | np.ndarray | sitk.Image = None,
+    min_intersection: float = 0.1,
 ) -> tuple[np.ndarray, list[tuple[int, float]], np.ndarray]:
     """
     Lesion candidate protocol as implemented in [1]. Essentially:
@@ -610,7 +611,7 @@ def extract_lesion_candidates(
             intersect_with. If the intersection is larger than
             min_intersection, the candidate is kept; otherwise it is discarded.
             Defaults to None.
-        min_overlap (float, optional): minimum intersection over the union to keep
+        min_intersection (float, optional): minimum intersection over the union to keep
             candidate. Defaults to 0.1.
 
     Returns:
@@ -651,7 +652,7 @@ def extract_lesion_candidates(
 
         if intersect_with is not None:
             iou = calculate_iou_a_over_b(hard_mask, intersect_with)
-            if iou < min_overlap:
+            if iou < min_intersection:
                 blobs_index[hard_mask.astype(bool)] = 0
                 continue
 
