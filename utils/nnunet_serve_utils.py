@@ -1,0 +1,356 @@
+import os
+import subprocess as sp
+import json
+import SimpleITK as sitk
+from glob import glob
+from pydantic import BaseModel, ConfigDict, Field
+from utils import (
+    Folds,
+    resample_image_to_target,
+    read_dicom_as_sitk,
+    export_to_dicom_seg,
+    export_to_dicom_struct,
+    export_proba_map,
+    export_fractional_dicom_seg,
+)
+from typing import Any
+
+os.environ["nnUNet_preprocessed"] = "tmp/preproc"
+os.environ["nnUNet_raw"] = "tmp"
+os.environ["nnUNet_results"] = "tmp"
+
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+
+
+class InferenceRequest(BaseModel):
+    """
+    Data model for the inference request from local data. Supports providing
+    multiple nnUNet model identifiers (``nnunet_id``) which in turn allows for
+    intersection-based filtering of downstream results.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    nnunet_id: str | list[str] = Field(
+        description="nnUnet model identifier or list of nnUNet model identifiers."
+    )
+    series_paths: list[str] | list[list[str]] = Field(
+        description="Paths or list of paths to series."
+    )
+    output_dir: str = Field("Output directory.")
+    prediction_idx: int | list[int] | list[list[int] | int] = Field(
+        description="Prediction index or indices which are kept after each prediction",
+        default=1,
+    )
+    checkpoint_name: str = Field(
+        description="nnUNet checkpoint name", default="checkpoint_best.pth"
+    )
+    tmp_dir: str = Field(
+        description="Directory for temporary outputs", default=".tmp"
+    )
+    is_dicom: bool = Field(
+        description="Whether series_paths refers to DICOM series folders",
+        default=False,
+    )
+    tta: bool = Field(
+        description="Whether to apply test-time augmentation (use_mirroring)",
+        default=True,
+    )
+    use_folds: Folds = Field(
+        description="Which folds should be used", default_factory=lambda: [0]
+    )
+    proba_threshold: float | list[float] = Field(
+        description="Probability threshold for model output", default=0.1
+    )
+    min_confidence: float | list[float] | None = Field(
+        description="Minimum confidence for model output", default=None
+    )
+    intersect_with: str | sitk.Image | None = Field(
+        description="Intersects output with this mask and if relative \
+            intersection < min_overlap this is set to 0",
+        default=None,
+    )
+    min_overlap: float = Field(
+        description="Minimum overlap for intersection", default=0.1
+    )
+    save_proba_map: bool = Field(
+        description="Saves the probability map", default=False
+    )
+    save_nifti_inputs: bool = Field(
+        description="Saves the Nifti inputs in the output folder if input is DICOM",
+        default=False,
+    )
+    save_rt_struct_output: bool = Field(
+        description="Saves the output as an RT struct file", default=False
+    )
+    suffix: str | None = Field(
+        description="Suffix for predictions", default=None
+    )
+
+
+def get_gpu_memory():
+    command = "nvidia-smi --query-gpu=memory.free --format=csv"
+    memory_free_info = (
+        sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
+    )
+    memory_free_values = [
+        int(x.split()[0]) for i, x in enumerate(memory_free_info)
+    ]
+    return memory_free_values
+
+
+def inference(
+    predictor: nnUNetPredictor,
+    nnunet_path: str,
+    series_paths: list[str],
+    output_dir: str,
+    prediction_idx: int | list[int] = 1,
+    checkpoint_name: str = "checkpoint_best.pth",
+    tmp_dir: str = ".tmp",
+    is_dicom: bool = False,
+    use_folds: Folds = (0,),
+    proba_threshold: float = 0.1,
+    min_confidence: float | None = None,
+    intersect_with: str | sitk.Image | None = None,
+    min_overlap: float = 0.1,
+) -> tuple[list[str], str, list[list[str]], sitk.Image]:
+
+    # initializes the network architecture, loads the checkpoint
+    predictor.initialize_from_trained_model_folder(
+        nnunet_path,
+        use_folds=use_folds,
+        checkpoint_name=checkpoint_name,
+    )
+
+    os.makedirs(tmp_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+    prediction_files = []
+    term = predictor.dataset_json["file_ending"]
+    if is_dicom is True:
+        sitk_images = [
+            read_dicom_as_sitk(glob(f"{series_path}/*dcm"))
+            for series_path in series_paths
+        ]
+        good_file_paths = [x[1] for x in sitk_images]
+        sitk_images = [x[0] for x in sitk_images]
+        for idx in range(1, len(sitk_images)):
+            sitk_images[idx] = resample_image_to_target(
+                sitk_images[idx], target=sitk_images[0]
+            )
+        for idx, image in enumerate(sitk_images):
+            file_termination = f"{idx}".rjust(4, "0")
+            sitk_image_path = f"{tmp_dir}/volume_{file_termination}{term}"
+            prediction_files.append(sitk_image_path)
+            sitk.WriteImage(image, sitk_image_path)
+    else:
+        for idx, series_path in enumerate(series_paths):
+            file_termination = f"{idx}".rjust(4, "0")
+            tmp_path = f"{tmp_dir}/volume_{file_termination}{term}"
+            # rewrite with correct nnunet formatting
+            sitk.WriteImage(sitk.ReadImage(series_path), tmp_path)
+            prediction_files.append(tmp_path)
+
+    predictor.predict_from_files(
+        [prediction_files],
+        output_dir,
+        save_probabilities=True,
+        num_processes_preprocessing=1,
+        num_processes_segmentation_export=1,
+    )
+
+    probability_map = export_proba_map(
+        prediction_files,
+        output_dir=output_dir,
+        min_confidence=min_confidence,
+        proba_threshold=proba_threshold,
+        intersect_with=intersect_with,
+        min_intersection=min_overlap,
+        class_idx=prediction_idx,
+    )
+
+    output_mask_path = f"{output_dir}/prediction.nii.gz"
+    mask = sitk.Cast(probability_map > 0.5, sitk.sitkUInt16)
+    sitk.WriteImage(mask, output_mask_path)
+
+    return (
+        prediction_files,
+        output_mask_path,
+        good_file_paths,
+        probability_map,
+    )
+
+
+def get_info(dataset_json_path: str) -> dict:
+    with open(dataset_json_path) as o:
+        return json.load(o)
+
+
+def wraper(
+    predictor: nnUNetPredictor,
+    nnunet_path: str | list[str],
+    series_paths: list[str] | list[list[str]],
+    output_dir: str,
+    prediction_idx: int | list[int] | list[list[int]] = 1,
+    checkpoint_name: str = "checkpoint_best.pth",
+    tmp_dir: str = ".tmp",
+    is_dicom: bool = False,
+    use_folds: tuple[int] = (0,),
+    proba_threshold: float | tuple[float] | list[float] = 0.1,
+    min_confidence: float | tuple[float] | list[float] | None = None,
+    intersect_with: str | sitk.Image | None = None,
+    min_overlap: float = 0.1,
+    save_proba_map: bool = False,
+    save_nifti_inputs: bool = False,
+    save_rt_struct_output: bool = False,
+    suffix: str | None = None,
+    metadata_path: str | None = None,
+):
+    def coherce_to_list(obj: Any, n: int) -> list[Any] | tuple[Any]:
+        if isinstance(obj, (list, tuple)):
+            if len(obj) != n:
+                raise ValueError(f"{obj} should have length {n}")
+        else:
+            obj = [obj for obj in range(n)]
+        return obj
+
+    output_dir = output_dir.strip().rstrip("/")
+
+    if isinstance(series_paths, (tuple, list)) is False:
+        raise ValueError(
+            f"series_paths should be list of strings or list of list of strings (is {series_paths})"
+        )
+    if isinstance(nnunet_path, (list, tuple)):
+        # minimal input parsing
+        series_paths_list = None
+        prediction_idx_list = None
+        if isinstance(series_paths, (tuple, list)):
+            if isinstance(series_paths[0], (list, tuple)):
+                series_paths_list = series_paths
+            elif isinstance(series_paths[0], str):
+                series_paths_list = [series_paths for _ in nnunet_path]
+        if isinstance(prediction_idx, int):
+            prediction_idx_list = [prediction_idx for _ in nnunet_path]
+        elif isinstance(prediction_idx, (tuple, list)):
+            if isinstance(prediction_idx[0], (list, tuple)):
+                prediction_idx_list = prediction_idx
+            elif isinstance(prediction_idx[0], int):
+                prediction_idx_list = [prediction_idx for _ in nnunet_path]
+        proba_threshold = coherce_to_list(proba_threshold, len(nnunet_path))
+        min_confidence = coherce_to_list(min_confidence, len(nnunet_path))
+
+        if series_paths_list is None:
+            raise ValueError(
+                f"series_paths should be list of strings or list of list of strings (is {series_paths})"
+            )
+        for i in range(len(nnunet_path)):
+            if i == (len(nnunet_path) - 1):
+                out = output_dir
+            else:
+                out = tmp_dir
+            sitk_files, mask_path, good_file_paths, proba_map = inference(
+                predictor=predictor,
+                nnunet_path=nnunet_path[i].strip(),
+                series_paths=series_paths[i],
+                prediction_idx=prediction_idx_list[i],
+                checkpoint_name=checkpoint_name.strip(),
+                output_dir=out,
+                tmp_dir=tmp_dir,
+                is_dicom=is_dicom,
+                use_folds=use_folds,
+                proba_threshold=proba_threshold[i],
+                min_confidence=min_confidence[i],
+                intersect_with=intersect_with,
+                min_overlap=min_overlap,
+            )
+            intersect_with = mask_path
+    else:
+        sitk_files, mask_path, good_file_paths, proba_map = inference(
+            predictor=predictor,
+            nnunet_path=nnunet_path.strip(),
+            series_paths=series_paths,
+            checkpoint_name=checkpoint_name.strip(),
+            output_dir=output_dir,
+            tmp_dir=tmp_dir,
+            is_dicom=is_dicom,
+            use_folds=use_folds,
+            proba_threshold=proba_threshold,
+            min_confidence=min_confidence,
+            intersect_with=intersect_with,
+            min_overlap=min_overlap,
+        )
+
+    mask = sitk.ReadImage(mask_path)
+
+    output_names = {
+        "prediction": (
+            "prediction" if suffix is None else f"prediction_{suffix}"
+        ),
+        "probabilities": (
+            "probabilities" if suffix is None else f"proba_{suffix}"
+        ),
+        "struct": "struct" if suffix is None else f"struct_{suffix}",
+    }
+
+    output_paths = {
+        "nifti_prediction": mask_path,
+        "nifti_probabilities": f"{output_dir}/{output_names['probabilities']}.nii.gz",
+    }
+
+    if save_nifti_inputs is True:
+        niftis = []
+        for sitk_file in sitk_files:
+            basename = os.path.basename(sitk_file)
+            for s in [".mha", ".nii.gz"]:
+                basename = basename.rstrip(s)
+            output_nifti = f"{output_dir}/{basename}.nii.gz"
+            print(f"Copying Nifti to {output_nifti}")
+            sitk.WriteImage(sitk.ReadImage(sitk_file), output_nifti)
+            niftis.append(output_nifti)
+        output_paths["nifti_inputs"] = niftis
+
+    if is_dicom is True:
+        if metadata_path is None:
+            raise ValueError(
+                "if is_dicom is True metadata_path must be specified"
+            )
+        status = export_to_dicom_seg(
+            mask,
+            metadata_path=metadata_path,
+            file_paths=good_file_paths,
+            output_dir=output_dir,
+            output_file_name=output_names["prediction"],
+        )
+        if "empty" in status:
+            print("Mask is empty, skipping DICOMseg/RTstruct")
+        elif save_rt_struct_output:
+            export_to_dicom_struct(
+                mask,
+                metadata_path=metadata_path,
+                file_paths=good_file_paths,
+                output_dir=output_dir,
+                output_file_name=output_names["struct"],
+            )
+            output_paths["dicom_struct"] = (
+                f"{output_dir}/{output_names['struct']}.dcm"
+            )
+            output_paths["dicom_segmentation"] = (
+                f"{output_dir}/{output_names['prediction']}.dcm"
+            )
+        else:
+            output_paths["dicom_segmentation"] = (
+                f"{output_dir}/{output_names['prediction']}.dcm"
+            )
+
+        if save_proba_map is True:
+            export_fractional_dicom_seg(
+                proba_map,
+                metadata_path=metadata_path,
+                file_paths=good_file_paths,
+                output_dir=output_dir,
+                output_file_name=output_names["probabilities"],
+            )
+            output_paths["dicom_fractional_segmentation"] = (
+                f"{output_dir}/{output_names['probabilities']}.dcm"
+            )
+
+    return output_paths

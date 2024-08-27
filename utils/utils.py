@@ -10,6 +10,14 @@ from scipy import ndimage
 
 from typing import Sequence
 
+Folds = (
+    tuple[int]
+    | tuple[int, int]
+    | tuple[int, int, int]
+    | tuple[int, int, int, int]
+    | tuple[int, int, int, int, int]
+)
+
 
 def filter_by_bvalue(
     dicom_files: list, target_bvalue: int, exact: bool = False
@@ -340,7 +348,7 @@ def get_study_uid(dicom_dir: List[str]) -> str:
 def export_to_dicom_seg(
     mask: sitk.Image,
     metadata_path: str,
-    file_paths: list[str],
+    file_paths: Sequence[Sequence[str]],
     output_dir: str,
     output_file_name: str = "prediction",
 ) -> str:
@@ -350,7 +358,7 @@ def export_to_dicom_seg(
     Args:
         mask (sitk.Image): an SITK file object corresponding to a mask.
         metadata_path (str): path to metadata template file.
-        file_paths (list[str]): list of DICOM file paths corresponding to the
+        file_paths (Sequence[str]): list of DICOM file paths corresponding to the
             original series.
         output_dir (str): path to output directory.
         output_file_name (str, optional): output file name. Defaults to
@@ -383,7 +391,7 @@ def export_to_dicom_seg(
 def export_to_dicom_struct(
     mask: sitk.Image,
     metadata_path: str,
-    file_paths: list[str],
+    file_paths: list[list[str]],
     output_dir: str,
     output_file_name: str = "struct",
 ) -> str:
@@ -421,6 +429,7 @@ def export_to_dicom_struct(
         ]
         for element in metadata["segmentAttributes"][0]
     ]
+
     save_mask_as_rtstruct(
         mask_array,
         os.path.dirname(file_paths[0][0]),
@@ -436,7 +445,7 @@ def export_proba_map(
     output_dir: str,
     proba_threshold: float | None = 0.1,
     min_confidence: float | None = None,
-    intersect_with: str | sitk.Image = None,
+    intersect_with: str | sitk.Image | None = None,
     min_intersection: float = 0.1,
     input_file_name: str = "volume",
     output_file_name: str = "probabilities",
@@ -501,7 +510,7 @@ def export_proba_map(
 def export_fractional_dicom_seg(
     proba_map: sitk.Image,
     metadata_path: str,
-    file_paths: list[str],
+    file_paths: Sequence[Sequence[str]],
     output_dir: str,
     output_file_name: str = "probabilities",
 ):
