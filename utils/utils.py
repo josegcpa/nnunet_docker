@@ -198,24 +198,25 @@ def dicom_orientation_to_sitk_direction(
     are all orthogonal. SITK does the more verbose job of specifying all three
     components of the orientation.
 
+    This is based on the Nibabel documentation.
+
     Args:
         orientation (Sequence[float]): DICOM orientation.
 
     Returns:
         np.ndarray: SITK (flattened) orientation.
     """
-    # based on nibabel documentation
-    orientation = np.array(orientation).reshape(2, 3).T
+    orientation_array = np.array(orientation).reshape(2, 3).T
     R = np.eye(3)
-    R[:, :2] = np.fliplr(orientation)
-    R[:, 2] = np.cross(orientation[:, 1], orientation[:, 0])
+    R[:, :2] = np.fliplr(orientation_array)
+    R[:, 2] = np.cross(orientation_array[:, 1], orientation_array[:, 0])
     R_sitk = np.stack([R[:, 1], R[:, 0], -R[:, 2]], 1)
     return R_sitk.flatten().tolist()
 
 
 def get_contiguous_arr_idxs(
     positions: np.ndarray, ranking: np.ndarray
-) -> np.array:
+) -> np.ndarray | None:
     """
     Uses the ranking to find breaks in positions and returns the elements in
     L which belong to the first contiguous array. Assumes that positions is an

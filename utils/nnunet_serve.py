@@ -47,7 +47,31 @@ if __name__ == "__main__":
 
     @app.post("/infer")
     def infer(inference_request: InferenceRequest):
-        a = time.time()
+        nnunet_id = inference_request.nnunet_id
+        if isinstance(nnunet_id, str):
+            if nnunet_id not in model_dictionary:
+                raise HTTPException(
+                    404, f"{nnunet_id} is not a valid nnUNet model"
+                )
+            nnunet_info = model_dictionary[nnunet_id]
+            nnunet_path = nnunet_info["path"]
+            metadata_path = nnunet_info.get("metadata", None)
+            min_mem = nnunet_info.get("min_mem", 4000)
+        else:
+            nnunet_path = []
+            min_mem = 0
+            for nn in nnunet_id:
+                if nn not in model_dictionary:
+                    raise HTTPException(
+                        404, f"{nnunet_id} is not a valid nnUNet model"
+                    )
+                nnunet_info = model_dictionary[nn]
+                nnunet_path.append(nnunet_info["path"])
+                curr_min_mem = nnunet_info.get("min_mem", 4000)
+                if curr_min_mem > min_mem:
+                    min_mem = curr_min_mem
+            metadata_path = nnunet_info.get("metadata", None)
+
         free = False
         while free is False:
             gpu_memory = get_gpu_memory()
@@ -57,52 +81,38 @@ if __name__ == "__main__":
                 for i in range(len(gpu_memory))
                 if gpu_memory[i] == max_gpu_memory
             ][0]
-            if max_gpu_memory > 4000:
+            if max_gpu_memory > min_mem:
                 free = True
+
+        a = time.time()
+
+        params = inference_request.__dict__
+        if "tta" in inference_request:
+            mirroring = inference_request.tta
+        else:
+            mirroring = True
 
         predictor = nnUNetPredictor(
             tile_step_size=0.5,
             use_gaussian=True,
-            use_mirroring=True,
+            use_mirroring=mirroring,
             device=torch.device("cuda", device_id),
             verbose=False,
             verbose_preprocessing=False,
             allow_tqdm=True,
         )
-        prior_use_mirroring = predictor.use_mirroring
-        nnunet_id = inference_request.nnunet_id
-        if isinstance(nnunet_id, str):
-            if nnunet_id not in model_dictionary:
-                raise HTTPException(
-                    404, f"{nnunet_id} is not a valid nnUNet model"
-                )
-            nnunet_info = model_dictionary[nnunet_id]
-            nnunet_path, metadata_path = nnunet_info["path"], nnunet_info.get(
-                "metadata", None
-            )
-        else:
-            nnunet_path = []
-            for nn in nnunet_id:
-                nnunet_info = model_dictionary[nn]
-                nnunet_path.append(nnunet_info["path"])
-            metadata_path = nnunet_info.get("metadata", None)
 
-        params = inference_request.__dict__
-        if "tta" in inference_request:
-            predictor.use_mirroring = inference_request.tta
-        del params["nnunet_id"]
-        del params["tta"]
+        del params["nnunet_id"], params["tta"]
+
         output_paths = wraper(
             **params,
             predictor=predictor,
             nnunet_path=nnunet_path,
             metadata_path=metadata_path,
         )
-        predictor.use_mirroring = prior_use_mirroring
-        b = time.time()
-
         del predictor
         torch.cuda.empty_cache()
+        b = time.time()
 
         return {
             "time_elapsed": b - a,
