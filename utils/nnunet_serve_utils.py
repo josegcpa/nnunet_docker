@@ -37,7 +37,7 @@ class InferenceRequest(BaseModel):
     series_paths: list[str] | list[list[str]] = Field(
         description="Paths or list of paths to series."
     )
-    output_dir: str = Field("Output directory.")
+    output_dir: str = Field(description="Output directory.")
     prediction_idx: int | list[int] | list[list[int] | int] = Field(
         description="Prediction index or indices which are kept after each prediction",
         default=1,
@@ -126,6 +126,11 @@ def inference(
     os.makedirs(output_dir, exist_ok=True)
     prediction_files = []
     term = predictor.dataset_json["file_ending"]
+    if len(predictor.dataset_json["channel_names"]) != len(series_paths):
+        exp_chan = predictor.dataset_json["channel_names"]
+        raise ValueError(
+            f"series_paths should have length {len(exp_chan)} ({exp_chan}) but has length {len(series_paths)}"
+        )
     if is_dicom is True:
         sitk_images = [
             read_dicom_as_sitk(glob(f"{series_path}/*dcm"))
