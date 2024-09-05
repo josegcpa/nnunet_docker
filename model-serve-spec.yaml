@@ -3,10 +3,18 @@ model_folder: /home/ccig/Desktop/Nuno/datasets/nnUNet_data/nnUNet_results
 models:
   Dataset045_ProstateAll:
     name: Dataset045_ProstateAll
+    # file containing metadata for DICOM-seg output
+    aliases: [prostate]
     metadata: metadata_templates/whole-prostate.json
-  Dataset068_AgressiveDiseasePCPNetMP:
-    name: Dataset068_AgressiveDiseasePCPNetMP
-    metadata: metadata_templates/prostate-lesion.json
+    # minimum amount of GPU memory to trigger running
+    min_mem: 4000 
   Dataset051_ProstateAllZones:
     name: Dataset051_ProstateAllZones
+    aliases: [prostate_zones]
     metadata: metadata_templates/prostate-zones.json
+    min_mem: 4000
+  Dataset068_AgressiveDiseasePCPNetMP:
+    name: Dataset068_AgressiveDiseasePCPNetMP
+    aliases: [aggressive_lesion]
+    metadata: metadata_templates/prostate-lesion.json
+    min_mem: 4000
