@@ -4,7 +4,6 @@ import yaml
 import fastapi
 import uvicorn
 import torch
-from fastapi import HTTPException
 from pathlib import Path
 
 from nnunet_serve_utils import (
@@ -20,6 +19,14 @@ if __name__ == "__main__":
 
     with open("model-serve-spec.yaml") as o:
         models_specs = yaml.safe_load(o)
+    alias_dict = {}
+    for k in models_specs["models"]:
+        model_name = models_specs["models"][k]["name"]
+        alias_dict[model_name] = model_name
+        if "aliases" in models_specs["models"][k]:
+            for alias in models_specs["models"][k]["aliases"]:
+                alias_dict[alias] = model_name
+            del models_specs["models"][k]["aliases"]
     if "model_folder" not in models_specs:
         raise ValueError(
             "model_folder must be specified in model-serve-spec.yaml"
@@ -49,11 +56,17 @@ if __name__ == "__main__":
     def infer(inference_request: InferenceRequest):
         nnunet_id = inference_request.nnunet_id
         if isinstance(nnunet_id, str):
-            if nnunet_id not in model_dictionary:
-                raise HTTPException(
-                    404, f"{nnunet_id} is not a valid nnUNet model"
-                )
-            nnunet_info = model_dictionary[nnunet_id]
+            if nnunet_id not in alias_dict:
+                return {
+                    "time_elapsed": None,
+                    "gpu": None,
+                    "nnunet_path": None,
+                    "metadata_path": None,
+                    "nnunet_id": nnunet_id,
+                    "status": "error",
+                    "error": f"{nnunet_id} is not a valid nnunet_id",
+                }
+            nnunet_info = model_dictionary[alias_dict[nnunet_id]]
             nnunet_path = nnunet_info["path"]
             metadata_path = nnunet_info.get("metadata", None)
             min_mem = nnunet_info.get("min_mem", 4000)
@@ -61,11 +74,17 @@ if __name__ == "__main__":
             nnunet_path = []
             min_mem = 0
             for nn in nnunet_id:
-                if nn not in model_dictionary:
-                    raise HTTPException(
-                        404, f"{nnunet_id} is not a valid nnUNet model"
-                    )
-                nnunet_info = model_dictionary[nn]
+                if nn not in alias_dict:
+                    return {
+                        "time_elapsed": None,
+                        "gpu": None,
+                        "nnunet_path": None,
+                        "metadata_path": None,
+                        "nnunet_id": nnunet_id,
+                        "status": "error",
+                        "error": f"{nnunet_id} is not a valid nnunet_id",
+                    }
+                nnunet_info = model_dictionary[alias_dict[nn]]
                 nnunet_path.append(nnunet_info["path"])
                 curr_min_mem = nnunet_info.get("min_mem", 4000)
                 if curr_min_mem > min_mem:
@@ -92,25 +111,34 @@ if __name__ == "__main__":
         else:
             mirroring = True
 
-        predictor = nnUNetPredictor(
-            tile_step_size=0.5,
-            use_gaussian=True,
-            use_mirroring=mirroring,
-            device=torch.device("cuda", device_id),
-            verbose=False,
-            verbose_preprocessing=False,
-            allow_tqdm=True,
-        )
+        try:
+            predictor = nnUNetPredictor(
+                tile_step_size=0.5,
+                use_gaussian=True,
+                use_mirroring=mirroring,
+                device=torch.device("cuda", device_id),
+                verbose=False,
+                verbose_preprocessing=False,
+                allow_tqdm=True,
+            )
 
-        del params["nnunet_id"], params["tta"]
+            for k in ["nnunet_id", "tta", "min_mem", "aliases"]:
+                if k in params:
+                    del params[k]
 
-        output_paths = wraper(
-            **params,
-            predictor=predictor,
-            nnunet_path=nnunet_path,
-            metadata_path=metadata_path,
-        )
-        del predictor
+            output_paths = wraper(
+                **params,
+                predictor=predictor,
+                nnunet_path=nnunet_path,
+                metadata_path=metadata_path,
+            )
+            del predictor
+            error = None
+            status = "success"
+        except Exception as e:
+            output_paths = {}
+            status = "fail"
+            error = str(e)
         torch.cuda.empty_cache()
         b = time.time()
 
@@ -119,6 +147,9 @@ if __name__ == "__main__":
             "gpu": device_id,
             "nnunet_path": nnunet_path,
             "metadata_path": metadata_path,
+            "nnunet_id": nnunet_id,
+            "status": status,
+            "error": error,
             **output_paths,
         }
 
