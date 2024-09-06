@@ -96,7 +96,13 @@ class InferenceRequest(BaseModel):
     )
 
 
-def get_gpu_memory():
+def get_gpu_memory() -> list[int]:
+    """
+    Uses ``nvidia-smi`` to get free GPU memory for all GPUs.
+
+    Returns:
+        list[int]: free memory for each GPU.
+    """
     command = "nvidia-smi --query-gpu=memory.free --format=csv"
     memory_free_info = (
         sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
@@ -112,7 +118,23 @@ def get_series_paths(
     series_folders: list[str] | list[list[str]] | None,
     n: int | None,
 ) -> tuple[list[str], str, str] | tuple[list[list[str]], str, str]:
-    print(series_folders)
+    """
+    Does minimal processing to go from a study path and relative series paths
+    (``series_folders``) to a list of series paths. ``n`` is used to specify
+    how many models are going (i.e. how many series lists in output) to do some
+    minimal.
+
+    Args:
+        study_path (str): path to study.
+        series_folders (list[str] | list[list[str]] | None): paths to series
+        relative to ``study_path``.
+        n (int | None): number of expected series lists in output. If it is an
+        int, it will return a nested list of string lists, if None return a list
+        of strings.
+
+    Returns:
+        tuple[list[str], str, str] | tuple[list[list[str]], str, str]: _description_
+    """
     if series_folders is None:
         return (
             None,
@@ -139,6 +161,16 @@ def get_series_paths(
 
 
 def wait_for_gpu(min_mem: int) -> int:
+    """
+    Waits for a GPU with at least ``min_mem`` free memory and returns the device
+    ID for the GPU with highest free memory.
+
+    Args:
+        min_mem (int): minimum amount of free memory.
+
+    Returns:
+        int: device ID for GPU with highest amount of free memory.
+    """
     free = False
     while free is False:
         gpu_memory = get_gpu_memory()
@@ -152,6 +184,19 @@ def wait_for_gpu(min_mem: int) -> int:
 
 
 def get_default_params(default_args: dict | list[dict]) -> dict:
+    """
+    Retrieves the default parameters for prediction. If ``default_args`` is a
+    list of dictionaries, it will return a dictionary of default parameters
+    where keys in ``args_with_mult_support`` are lists of values and the last
+    default value is used for the rest of the keys.
+
+    Args:
+        default_args (dict | list[dict]): either a dictionary of default
+            parameters or a list of dictionaries of default parameters.
+
+    Returns:
+        dict: dictionary of default parameters.
+    """
     args_with_mult_support = [
         "proba_threshold",
         "min_confidence",
@@ -171,47 +216,6 @@ def get_default_params(default_args: dict | list[dict]) -> dict:
                 else:
                     default_params[k] = curr_default_args[k]
     return default_params
-
-
-def predict(
-    series_paths: list,
-    metadata_path: str,
-    mirroring: bool,
-    device_id: int,
-    params: dict,
-    nnunet_path: str,
-):
-    predictor = nnUNetPredictor(
-        tile_step_size=0.5,
-        use_gaussian=True,
-        use_mirroring=mirroring,
-        device=torch.device("cuda", device_id),
-        verbose=False,
-        verbose_preprocessing=False,
-        allow_tqdm=True,
-    )
-
-    for k in [
-        "nnunet_id",
-        "tta",
-        "min_mem",
-        "aliases",
-        "study_path",
-        "series_folders",
-    ]:
-        if k in params:
-            del params[k]
-
-    output_paths = wraper(
-        **params,
-        series_paths=series_paths,
-        predictor=predictor,
-        nnunet_path=nnunet_path,
-        metadata_path=metadata_path,
-    )
-    del predictor
-    torch.cuda.empty_cache()
-    return output_paths
 
 
 def inference(
@@ -473,4 +477,45 @@ def wraper(
                 f"{output_dir}/{output_names['probabilities']}.dcm"
             )
 
+    return output_paths
+
+
+def predict(
+    series_paths: list,
+    metadata_path: str,
+    mirroring: bool,
+    device_id: int,
+    params: dict,
+    nnunet_path: str,
+):
+    predictor = nnUNetPredictor(
+        tile_step_size=0.5,
+        use_gaussian=True,
+        use_mirroring=mirroring,
+        device=torch.device("cuda", device_id),
+        verbose=False,
+        verbose_preprocessing=False,
+        allow_tqdm=True,
+    )
+
+    for k in [
+        "nnunet_id",
+        "tta",
+        "min_mem",
+        "aliases",
+        "study_path",
+        "series_folders",
+    ]:
+        if k in params:
+            del params[k]
+
+    output_paths = wraper(
+        **params,
+        series_paths=series_paths,
+        predictor=predictor,
+        nnunet_path=nnunet_path,
+        metadata_path=metadata_path,
+    )
+    del predictor
+    torch.cuda.empty_cache()
     return output_paths
