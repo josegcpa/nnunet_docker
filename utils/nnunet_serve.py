@@ -7,12 +7,16 @@ import torch
 from pathlib import Path
 
 from nnunet_serve_utils import (
+    FAILURE_STATUS,
+    SUCCESS_STATUS,
     get_info,
-    get_gpu_memory,
+    get_default_params,
+    get_series_paths,
+    wait_for_gpu,
     InferenceRequest,
-    nnUNetPredictor,
-    wraper,
+    predict,
 )
+
 
 if __name__ == "__main__":
     app = fastapi.FastAPI()
@@ -43,7 +47,11 @@ if __name__ == "__main__":
         for m in model_paths
     }
     model_dictionary = {
-        m: {**model_dictionary[m], **models_specs["models"].get(m, None)}
+        m: {
+            **model_dictionary[m],
+            **models_specs["models"].get(m, None),
+            "default_args": models_specs["models"][m].get("default_args", {}),
+        }
         for m in model_dictionary
         if m in models_specs["models"]
     }
@@ -54,7 +62,9 @@ if __name__ == "__main__":
 
     @app.post("/infer")
     def infer(inference_request: InferenceRequest):
-        nnunet_id = inference_request.nnunet_id
+        params = inference_request.__dict__
+        nnunet_id = params["nnunet_id"]
+        # check if nnunet_id is a list
         if isinstance(nnunet_id, str):
             if nnunet_id not in alias_dict:
                 return {
@@ -62,16 +72,17 @@ if __name__ == "__main__":
                     "gpu": None,
                     "nnunet_path": None,
                     "metadata_path": None,
-                    "nnunet_id": nnunet_id,
-                    "status": "error",
+                    "request": inference_request.__dict__,
+                    "status": FAILURE_STATUS,
                     "error": f"{nnunet_id} is not a valid nnunet_id",
                 }
             nnunet_info = model_dictionary[alias_dict[nnunet_id]]
             nnunet_path = nnunet_info["path"]
-            metadata_path = nnunet_info.get("metadata", None)
             min_mem = nnunet_info.get("min_mem", 4000)
+            default_args = nnunet_info.get("default_args", {})
         else:
             nnunet_path = []
+            default_args = []
             min_mem = 0
             for nn in nnunet_id:
                 if nn not in alias_dict:
@@ -80,8 +91,8 @@ if __name__ == "__main__":
                         "gpu": None,
                         "nnunet_path": None,
                         "metadata_path": None,
-                        "nnunet_id": nnunet_id,
-                        "status": "error",
+                        "request": inference_request.__dict__,
+                        "status": FAILURE_STATUS,
                         "error": f"{nnunet_id} is not a valid nnunet_id",
                     }
                 nnunet_info = model_dictionary[alias_dict[nn]]
@@ -89,56 +100,75 @@ if __name__ == "__main__":
                 curr_min_mem = nnunet_info.get("min_mem", 4000)
                 if curr_min_mem > min_mem:
                     min_mem = curr_min_mem
-            metadata_path = nnunet_info.get("metadata", None)
+                default_args.append(nnunet_info.get("default_args", {}))
+        metadata_path = nnunet_info.get("metadata", None)
+        default_params = get_default_params(default_args)
 
-        free = False
-        while free is False:
-            gpu_memory = get_gpu_memory()
-            max_gpu_memory = max(gpu_memory)
-            device_id = [
-                i
-                for i in range(len(gpu_memory))
-                if gpu_memory[i] == max_gpu_memory
-            ][0]
-            if max_gpu_memory > min_mem:
-                free = True
+        print(default_params)
 
-        a = time.time()
+        # assign
+        for k in default_params:
+            if k not in params:
+                params[k] = default_params[k]
+            else:
+                if params[k] is None:
+                    params[k] = default_params[k]
 
-        params = inference_request.__dict__
-        if "tta" in inference_request:
-            mirroring = inference_request.tta
+        series_paths, code, error_msg = get_series_paths(
+            params["study_path"],
+            series_folders=params["series_folders"],
+            n=len(nnunet_id) if isinstance(nnunet_id, list) else None,
+        )
+
+        if code == FAILURE_STATUS:
+            return {
+                "time_elapsed": None,
+                "gpu": None,
+                "nnunet_path": None,
+                "metadata_path": None,
+                "status": FAILURE_STATUS,
+                "request": inference_request.__dict__,
+                "error": error_msg,
+            }
+
+        device_id = wait_for_gpu(min_mem)
+
+        if "tta" in params:
+            mirroring = params["tta"]
         else:
             mirroring = True
 
-        try:
-            predictor = nnUNetPredictor(
-                tile_step_size=0.5,
-                use_gaussian=True,
-                use_mirroring=mirroring,
-                device=torch.device("cuda", device_id),
-                verbose=False,
-                verbose_preprocessing=False,
-                allow_tqdm=True,
-            )
-
-            for k in ["nnunet_id", "tta", "min_mem", "aliases"]:
-                if k in params:
-                    del params[k]
-
-            output_paths = wraper(
-                **params,
-                predictor=predictor,
-                nnunet_path=nnunet_path,
+        a = time.time()
+        if os.environ.get("DEBUG", 0) == "1":
+            output_paths = predict(
+                series_paths=series_paths,
                 metadata_path=metadata_path,
+                mirroring=mirroring,
+                device_id=device_id,
+                params=params,
+                nnunet_path=nnunet_path,
             )
-            del predictor
             error = None
-            status = "success"
-        except Exception as e:
-            output_paths = {}
-            status = "fail"
-            error = str(e)
+            status = SUCCESS_STATUS
+        else:
+            try:
+                output_paths = predict(
+                    series_paths=series_paths,
+                    metadata_path=metadata_path,
+                    mirroring=mirroring,
+                    device_id=device_id,
+                    params=params,
+                    nnunet_path=nnunet_path,
+                )
+                error = None
+                status = SUCCESS_STATUS
+                torch.cuda.empty_cache()
+                b = time.time()
+
+            except Exception as e:
+                output_paths = {}
+                status = FAILURE_STATUS
+                error = str(e)
         torch.cuda.empty_cache()
         b = time.time()
 
@@ -147,7 +177,7 @@ if __name__ == "__main__":
             "gpu": device_id,
             "nnunet_path": nnunet_path,
             "metadata_path": metadata_path,
-            "nnunet_id": nnunet_id,
+            "request": inference_request.__dict__,
             "status": status,
             "error": error,
             **output_paths,

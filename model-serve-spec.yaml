@@ -8,13 +8,38 @@ models:
     metadata: metadata_templates/whole-prostate.json
     # minimum amount of GPU memory to trigger running
     min_mem: 4000 
+    # defines default params (overriden by posts)
+    default_args: 
+      series_folders: ["inputs/seriesT2"]
+      use_folds: [0, 1, 2, 3, 4]
+      proba_threshold: 0.1
+      min_confidence: 0.5
+      tta: true
+      save_proba_map: true
+      checkpoint_name: "checkpoint_best.pth"
   Dataset051_ProstateAllZones:
     name: Dataset051_ProstateAllZones
     aliases: [prostate_zones]
     metadata: metadata_templates/prostate-zones.json
     min_mem: 4000
+    default_args: 
+      series_folders: ["inputs/seriesT2"]
+      use_folds: [0, 1, 2, 3, 4]
+      proba_threshold: 0.1
+      min_confidence: 0.5
+      tta: true
+      save_proba_map: true
+      checkpoint_name: "checkpoint_best.pth"
   Dataset068_AgressiveDiseasePCPNetMP:
     name: Dataset068_AgressiveDiseasePCPNetMP
     aliases: [aggressive_lesion]
     metadata: metadata_templates/prostate-lesion.json
     min_mem: 4000
+    default_args: 
+      series_folders: ["inputs/seriesT2", "inputs/seriesDWI", "inputs/seriesADC"]
+      use_folds: [0, 1, 2, 3, 4]
+      proba_threshold: 0.1
+      min_confidence: 0.5
+      tta: true
+      save_proba_map: true
+      checkpoint_name: "checkpoint_best.pth"

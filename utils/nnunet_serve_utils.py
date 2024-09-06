@@ -2,6 +2,7 @@ import os
 import subprocess as sp
 import json
 import SimpleITK as sitk
+import torch
 from glob import glob
 from pydantic import BaseModel, ConfigDict, Field
 from utils import (
@@ -15,11 +16,14 @@ from utils import (
 )
 from typing import Any
 
+SUCCESS_STATUS = "done"
+FAILURE_STATUS = "failed"
+
 os.environ["nnUNet_preprocessed"] = "tmp/preproc"
 os.environ["nnUNet_raw"] = "tmp"
 os.environ["nnUNet_results"] = "tmp"
 
-from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor  # noqa
 
 
 class InferenceRequest(BaseModel):
@@ -34,8 +38,12 @@ class InferenceRequest(BaseModel):
     nnunet_id: str | list[str] = Field(
         description="nnUnet model identifier or list of nnUNet model identifiers."
     )
-    series_paths: list[str] | list[list[str]] = Field(
-        description="Paths or list of paths to series."
+    study_path: str = Field(
+        description="Path to study folder or list of paths to studies."
+    )
+    series_folders: list[str] | list[list[str]] = Field(
+        description="Series folder names or list of series folder names (relative to study_path).",
+        default=None,
     )
     output_dir: str = Field(description="Output directory.")
     prediction_idx: int | list[int] | list[list[int] | int] = Field(
@@ -97,6 +105,113 @@ def get_gpu_memory():
         int(x.split()[0]) for i, x in enumerate(memory_free_info)
     ]
     return memory_free_values
+
+
+def get_series_paths(
+    study_path: str,
+    series_folders: list[str] | list[list[str]] | None,
+    n: int | None,
+) -> tuple[list[str], str, str] | tuple[list[list[str]], str, str]:
+    print(series_folders)
+    if series_folders is None:
+        return (
+            None,
+            FAILURE_STATUS,
+            "series_folders must be defined",
+        )
+    if n is None:
+        series_paths = [os.path.join(study_path, x) for x in series_folders]
+    else:
+        study_path = [study_path for _ in range(n)]
+        series_paths = []
+        if n != len(series_folders):
+            return (
+                None,
+                FAILURE_STATUS,
+                "series_folders and nnunet_id must be the same length",
+            )
+        for i in range(len(study_path)):
+            series_paths.append(
+                [os.path.join(study_path[i], x) for x in series_folders[i]]
+            )
+
+    return series_paths, SUCCESS_STATUS, None
+
+
+def wait_for_gpu(min_mem: int) -> int:
+    free = False
+    while free is False:
+        gpu_memory = get_gpu_memory()
+        max_gpu_memory = max(gpu_memory)
+        device_id = [
+            i for i in range(len(gpu_memory)) if gpu_memory[i] == max_gpu_memory
+        ][0]
+        if max_gpu_memory > min_mem:
+            free = True
+    return device_id
+
+
+def get_default_params(default_args: dict | list[dict]) -> dict:
+    args_with_mult_support = [
+        "proba_threshold",
+        "min_confidence",
+        "prediction_idx",
+        "series_folders",
+    ]
+    if isinstance(default_args, dict):
+        default_params = default_args
+    else:
+        default_params = {}
+        for curr_default_args in default_args:
+            for k in curr_default_args:
+                if k in args_with_mult_support:
+                    if k not in default_params:
+                        default_params[k] = []
+                    default_params[k].append(curr_default_args[k])
+                else:
+                    default_params[k] = curr_default_args[k]
+    return default_params
+
+
+def predict(
+    series_paths: list,
+    metadata_path: str,
+    mirroring: bool,
+    device_id: int,
+    params: dict,
+    nnunet_path: str,
+):
+    predictor = nnUNetPredictor(
+        tile_step_size=0.5,
+        use_gaussian=True,
+        use_mirroring=mirroring,
+        device=torch.device("cuda", device_id),
+        verbose=False,
+        verbose_preprocessing=False,
+        allow_tqdm=True,
+    )
+
+    for k in [
+        "nnunet_id",
+        "tta",
+        "min_mem",
+        "aliases",
+        "study_path",
+        "series_folders",
+    ]:
+        if k in params:
+            del params[k]
+
+    output_paths = wraper(
+        **params,
+        series_paths=series_paths,
+        predictor=predictor,
+        nnunet_path=nnunet_path,
+        metadata_path=metadata_path,
+    )
+    del predictor
+    torch.cuda.empty_cache()
+    return output_paths
 
 
 def inference(
