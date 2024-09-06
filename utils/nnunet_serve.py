@@ -104,8 +104,6 @@ if __name__ == "__main__":
         metadata_path = nnunet_info.get("metadata", None)
         default_params = get_default_params(default_args)
 
-        print(default_params)
-
         # assign
         for k in default_params:
             if k not in params:
