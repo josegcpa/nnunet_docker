@@ -19,6 +19,65 @@ Folds = (
 )
 
 
+def copy_information_nd(
+    target_image: sitk.Image, source_image: sitk.Image
+) -> sitk.Image:
+    """
+    Copies information from a source image to a target image. Unlike the
+    standard CopyInformation method in SimpleITK, the source image can have
+    fewer axes than the target image as long as the first n axes of each are
+    identical (where n is the number of axes in the source image).
+
+    Args:
+        target_image (sitk.Image): target image.
+        source_image (sitk.Image): source information for metadata.
+
+    Raises:
+        Exception: if the source image has more dimensions than the target
+            image.
+
+    Returns:
+        sitk.Image: target image with metadata copied from source image.
+            The metadata information for the additional axes is set to 0 in the
+            case of the origin, 1.0 in the case of the spacing and to the
+            identity in the case of the direction.
+    """
+    size_source = source_image.GetSize()
+    size_target = target_image.GetSize()
+    n_dim_in = len(size_source)
+    n_dim_out = len(size_target)
+    if n_dim_in == n_dim_out:
+        target_image.CopyInformation(source_image)
+        return target_image
+    elif n_dim_in > n_dim_out:
+        raise Exception(
+            "target_image has to have the same or more dimensions than\
+                source_image"
+        )
+    if size_target[:n_dim_in] != size_source:
+        out_str = f"sizes are different (target={size_target[:n_dim_in]}"
+        out_str += f" size_source={size_source})"
+        return out_str
+    spacing = list(source_image.GetSpacing())
+    origin = list(source_image.GetOrigin())
+    direction = list(source_image.GetDirection())
+    while len(origin) != n_dim_out:
+        spacing.append(1.0)
+        origin.append(0.0)
+    direction = np.reshape(direction, (n_dim_in, n_dim_in))
+    direction = np.pad(
+        direction, ((0, n_dim_out - n_dim_in), (0, n_dim_out - n_dim_in))
+    )
+    x, y = np.diag_indices(n_dim_out - n_dim_in)
+    x = x + n_dim_in
+    y = y + n_dim_in
+    direction[(x, y)] = 1.0
+    target_image.SetSpacing(spacing)
+    target_image.SetOrigin(origin)
+    target_image.SetDirection(direction.flatten())
+    return target_image
+
+
 def filter_by_bvalue(
     dicom_files: list, target_bvalue: int, exact: bool = False
 ) -> list:
@@ -55,9 +114,7 @@ def filter_by_bvalue(
                 curr_bvalue = curr_bvalue.decode()
             curr_bvalue = str(curr_bvalue)
             if "[" in curr_bvalue and "]" in curr_bvalue:
-                curr_bvalue = (
-                    curr_bvalue.strip().strip("[").strip("]").split(",")
-                )
+                curr_bvalue = curr_bvalue.strip().strip("[").strip("]").split(",")
                 curr_bvalue = [int(x) for x in curr_bvalue]
             if isinstance(curr_bvalue, list) is False:
                 curr_bvalue = curr_bvalue.split("\\")
@@ -74,9 +131,7 @@ def filter_by_bvalue(
         return dicom_files
     if (target_bvalue not in unique_bvalues) and (exact is True):
         raise RuntimeError("Requested b-value not available")
-    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[
-        0
-    ]
+    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[0]
     dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
     return dicom_files
 
@@ -128,15 +183,9 @@ def resample_image(
     original_size = sitk_image.GetSize()
 
     out_size = [
-        int(
-            np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))
-        ),
-        int(
-            np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))
-        ),
-        int(
-            np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))
-        ),
+        int(np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))),
+        int(np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))),
+        int(np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))),
     ]
 
     resample = sitk.ResampleImageFilter()
@@ -296,9 +345,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     orientation = list(map(float, orientation))
     orientation_sitk = dicom_orientation_to_sitk_direction(orientation)
     z_axis = 2
-    real_position = np.matmul(
-        position, np.array(orientation_sitk).reshape([3, 3])
-    )
+    real_position = np.matmul(position, np.array(orientation_sitk).reshape([3, 3]))
     z_position = np.sort(real_position[:, z_axis])
     z_spacing = np.median(np.diff(z_position))
     if np.isclose(z_spacing, 0) == True:
@@ -371,9 +418,7 @@ def export_to_dicom_seg(
     """
     import pydicom_seg
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-        metadata_path.strip()
-    )
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
     writer = pydicom_seg.MultiClassWriter(
         template=metadata_template,
         skip_empty_slices=True,
@@ -441,7 +486,7 @@ def export_to_dicom_struct(
     return "success"
 
 
-def export_proba_map(
+def export_proba_map_and_mask(
     sitk_files: list[str],
     output_dir: str,
     proba_threshold: float | None = 0.1,
@@ -449,14 +494,15 @@ def export_proba_map(
     intersect_with: str | sitk.Image | None = None,
     min_intersection: float = 0.1,
     input_file_name: str = "volume",
-    output_file_name: str = "probabilities",
-    class_idx: int | list[int] = 1,
+    output_proba_map_file_name: str = "probabilities",
+    output_mask_file_name: str = "prediction",
+    class_idx: int | list[int] | None = None,
 ) -> sitk.Image:
     """
-    Exports a SITK probability mask. Applies a candidate extraction protocol
-    (i.e. filtering probabilities above proba_threshold, applying connected
-    component analysis and filtering out objects whose maximum probability is
-    lower than min_confidence).
+    Exports a SITK probability mask and the corresponding prediction. Applies a
+    candidate extraction protocol (i.e. filtering probabilities above
+    proba_threshold, applying connected component analysis and filtering out
+    objects whose maximum probability is lower than min_confidence).
 
     Args:
         mask (sitk.Image): an SITK file object corresponding to a mask.
@@ -469,12 +515,15 @@ def export_proba_map(
             intersect_with. If the intersection is larger than
             min_intersection, the candidate is kept; otherwise it is discarded.
             Defaults to None.
-        min_intersection (float, optional): minimum intersection over the union to keep
-            candidate. Defaults to 0.1.
+        min_intersection (float, optional): minimum intersection over the union
+            to keep candidate. Defaults to 0.1.
         input_file_name (str, optional): input file name. Defaults to "volume".
-        output_file_name (str, optional): output file name. Defaults to
-            "probabilities".
-        class_idx (int | list[int], optional): class index for output probability.
+        output_proba_map_file_name (str, optional): output file name for
+            probability mask. Defaults to "probabilities".
+        output_mask_file_name (str, optional): output file name for mask.
+            Defaults to "prediction".
+        class_idx (int | list[int] | None, optional): class index for output
+            probability. Defaults to None (no selection).
 
     Returns:
         sitk.Image: returns the probability mask after the candidate extraction
@@ -482,30 +531,38 @@ def export_proba_map(
     """
 
     input_proba_map = f"{output_dir}/{input_file_name}.npz"
-    output_proba_map = f"{output_dir}/{output_file_name}.nii.gz"
+    output_proba_map = f"{output_dir}/{output_proba_map_file_name}.nii.gz"
+    output_mask = f"{output_dir}/{output_mask_file_name}.nii.gz"
     input_file = sitk.ReadImage(sitk_files[0])
     proba_array: np.ndarray = np.load(input_proba_map)["probabilities"]
-    if isinstance(class_idx, int):
-        proba_array = proba_array[class_idx]
-    elif isinstance(class_idx, (list, tuple)):
-        proba_array = proba_array[class_idx].sum(0)
-    proba_array, _, _ = extract_lesion_candidates(
-        proba_array,
-        threshold=proba_threshold,
-        min_confidence=min_confidence,
-        intersect_with=intersect_with,
-        min_intersection=min_intersection,
-    )
+    if class_idx is None:
+        mask = np.argmax(proba_array, 0)
+        proba_array = np.moveaxis(proba_array, 0, -1)
+    else:
+        proba_array = np.where(proba_array < proba_threshold, 0.0, proba_array)
+        if isinstance(class_idx, int):
+            proba_array = proba_array[class_idx]
+        elif isinstance(class_idx, (list, tuple)):
+            proba_array = proba_array[class_idx].sum(0)
+        proba_array, _, _ = extract_lesion_candidates(
+            proba_array,
+            threshold=proba_threshold,
+            min_confidence=min_confidence,
+            intersect_with=intersect_with,
+            min_intersection=min_intersection,
+        )
+        mask = proba_array > proba_threshold
     proba_map = sitk.GetImageFromArray(proba_array)
-    proba_map.CopyInformation(input_file)
-    threshold = sitk.ThresholdImageFilter()
-    threshold.SetLower(float(proba_threshold))
-    threshold.SetUpper(1.0)
-    proba_map = threshold.Execute(proba_map)
+    proba_map = copy_information_nd(proba_map, input_file)
+    mask = sitk.GetImageFromArray(mask.astype(np.uint32))
+    mask.CopyInformation(input_file)
+
     print(f"writing probability map to {output_proba_map}")
     sitk.WriteImage(proba_map, output_proba_map)
+    print(f"writing mask to {output_mask}")
+    sitk.WriteImage(mask, output_mask)
 
-    return proba_map
+    return proba_map, mask
 
 
 def export_fractional_dicom_seg(
@@ -533,9 +590,7 @@ def export_fractional_dicom_seg(
     """
     from pydicom_seg_writers import FractionalWriter
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-        metadata_path.strip()
-    )
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
     writer = FractionalWriter(
         template=metadata_template,
         skip_empty_slices=True,
@@ -640,6 +695,7 @@ def extract_lesion_candidates(
         min_confidence = threshold
 
     if intersect_with is not None:
+        print(f"Intersecting with {intersect_with}")
         if isinstance(intersect_with, str):
             intersect_with = sitk.ReadImage(intersect_with)
         if isinstance(intersect_with, sitk.Image):
