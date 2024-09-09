@@ -11,7 +11,7 @@ from utils import (
     read_dicom_as_sitk,
     export_to_dicom_seg,
     export_to_dicom_struct,
-    export_proba_map,
+    export_proba_map_and_mask,
     export_fractional_dicom_seg,
 )
 from typing import Any
@@ -46,16 +46,14 @@ class InferenceRequest(BaseModel):
         default=None,
     )
     output_dir: str = Field(description="Output directory.")
-    prediction_idx: int | list[int] | list[list[int] | int] = Field(
+    class_idx: int | list[int | None] | list[list[int] | int | None] = Field(
         description="Prediction index or indices which are kept after each prediction",
         default=1,
     )
     checkpoint_name: str = Field(
         description="nnUNet checkpoint name", default="checkpoint_best.pth"
     )
-    tmp_dir: str = Field(
-        description="Directory for temporary outputs", default=".tmp"
-    )
+    tmp_dir: str = Field(description="Directory for temporary outputs", default=".tmp")
     is_dicom: bool = Field(
         description="Whether series_paths refers to DICOM series folders",
         default=False,
@@ -73,7 +71,7 @@ class InferenceRequest(BaseModel):
     min_confidence: float | list[float] | None = Field(
         description="Minimum confidence for model output", default=None
     )
-    intersect_with: str | sitk.Image | None = Field(
+    intersect_with: str | None = Field(
         description="Intersects output with this mask and if relative \
             intersection < min_overlap this is set to 0",
         default=None,
@@ -81,9 +79,7 @@ class InferenceRequest(BaseModel):
     min_overlap: float = Field(
         description="Minimum overlap for intersection", default=0.1
     )
-    save_proba_map: bool = Field(
-        description="Saves the probability map", default=False
-    )
+    save_proba_map: bool = Field(description="Saves the probability map", default=False)
     save_nifti_inputs: bool = Field(
         description="Saves the Nifti inputs in the output folder if input is DICOM",
         default=False,
@@ -91,25 +87,15 @@ class InferenceRequest(BaseModel):
     save_rt_struct_output: bool = Field(
         description="Saves the output as an RT struct file", default=False
     )
-    suffix: str | None = Field(
-        description="Suffix for predictions", default=None
-    )
+    suffix: str | None = Field(description="Suffix for predictions", default=None)
 
 
-def get_gpu_memory() -> list[int]:
-    """
-    Uses ``nvidia-smi`` to get free GPU memory for all GPUs.
-
-    Returns:
-        list[int]: free memory for each GPU.
-    """
+def get_gpu_memory():
     command = "nvidia-smi --query-gpu=memory.free --format=csv"
     memory_free_info = (
         sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
     )
-    memory_free_values = [
-        int(x.split()[0]) for i, x in enumerate(memory_free_info)
-    ]
+    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
     return memory_free_values
 
 
@@ -118,23 +104,6 @@ def get_series_paths(
     series_folders: list[str] | list[list[str]] | None,
     n: int | None,
 ) -> tuple[list[str], str, str] | tuple[list[list[str]], str, str]:
-    """
-    Does minimal processing to go from a study path and relative series paths
-    (``series_folders``) to a list of series paths. ``n`` is used to specify
-    how many models are going (i.e. how many series lists in output) to do some
-    minimal.
-
-    Args:
-        study_path (str): path to study.
-        series_folders (list[str] | list[list[str]] | None): paths to series
-        relative to ``study_path``.
-        n (int | None): number of expected series lists in output. If it is an
-        int, it will return a nested list of string lists, if None return a list
-        of strings.
-
-    Returns:
-        tuple[list[str], str, str] | tuple[list[list[str]], str, str]: _description_
-    """
     if series_folders is None:
         return (
             None,
@@ -161,16 +130,6 @@ def get_series_paths(
 
 
 def wait_for_gpu(min_mem: int) -> int:
-    """
-    Waits for a GPU with at least ``min_mem`` free memory and returns the device
-    ID for the GPU with highest free memory.
-
-    Args:
-        min_mem (int): minimum amount of free memory.
-
-    Returns:
-        int: device ID for GPU with highest amount of free memory.
-    """
     free = False
     while free is False:
         gpu_memory = get_gpu_memory()
@@ -184,23 +143,10 @@ def wait_for_gpu(min_mem: int) -> int:
 
 
 def get_default_params(default_args: dict | list[dict]) -> dict:
-    """
-    Retrieves the default parameters for prediction. If ``default_args`` is a
-    list of dictionaries, it will return a dictionary of default parameters
-    where keys in ``args_with_mult_support`` are lists of values and the last
-    default value is used for the rest of the keys.
-
-    Args:
-        default_args (dict | list[dict]): either a dictionary of default
-            parameters or a list of dictionaries of default parameters.
-
-    Returns:
-        dict: dictionary of default parameters.
-    """
     args_with_mult_support = [
         "proba_threshold",
         "min_confidence",
-        "prediction_idx",
+        "class_idx",
         "series_folders",
     ]
     if isinstance(default_args, dict):
@@ -218,12 +164,53 @@ def get_default_params(default_args: dict | list[dict]) -> dict:
     return default_params
 
 
+def predict(
+    series_paths: list,
+    metadata_path: str,
+    mirroring: bool,
+    device_id: int,
+    params: dict,
+    nnunet_path: str,
+):
+    predictor = nnUNetPredictor(
+        tile_step_size=0.5,
+        use_gaussian=True,
+        use_mirroring=mirroring,
+        device=torch.device("cuda", device_id),
+        verbose=False,
+        verbose_preprocessing=False,
+        allow_tqdm=True,
+    )
+
+    for k in [
+        "nnunet_id",
+        "tta",
+        "min_mem",
+        "aliases",
+        "study_path",
+        "series_folders",
+    ]:
+        if k in params:
+            del params[k]
+
+    output_paths = wraper(
+        **params,
+        series_paths=series_paths,
+        predictor=predictor,
+        nnunet_path=nnunet_path,
+        metadata_path=metadata_path,
+    )
+    del predictor
+    torch.cuda.empty_cache()
+    return output_paths
+
+
 def inference(
     predictor: nnUNetPredictor,
     nnunet_path: str,
     series_paths: list[str],
     output_dir: str,
-    prediction_idx: int | list[int] = 1,
+    class_idx: int | list[int] = 1,
     checkpoint_name: str = "checkpoint_best.pth",
     tmp_dir: str = ".tmp",
     is_dicom: bool = False,
@@ -282,18 +269,17 @@ def inference(
         num_processes_segmentation_export=1,
     )
 
-    probability_map = export_proba_map(
+    probability_map, mask = export_proba_map_and_mask(
         prediction_files,
         output_dir=output_dir,
         min_confidence=min_confidence,
         proba_threshold=proba_threshold,
         intersect_with=intersect_with,
         min_intersection=min_overlap,
-        class_idx=prediction_idx,
+        class_idx=class_idx,
     )
 
     output_mask_path = f"{output_dir}/prediction.nii.gz"
-    mask = sitk.Cast(probability_map > 0.5, sitk.sitkUInt16)
     sitk.WriteImage(mask, output_mask_path)
 
     return (
@@ -314,7 +300,7 @@ def wraper(
     nnunet_path: str | list[str],
     series_paths: list[str] | list[list[str]],
     output_dir: str,
-    prediction_idx: int | list[int] | list[list[int]] = 1,
+    class_idx: int | list[int] | list[list[int]] = 1,
     checkpoint_name: str = "checkpoint_best.pth",
     tmp_dir: str = ".tmp",
     is_dicom: bool = False,
@@ -346,19 +332,16 @@ def wraper(
     if isinstance(nnunet_path, (list, tuple)):
         # minimal input parsing
         series_paths_list = None
-        prediction_idx_list = None
+        class_idx_list = None
         if isinstance(series_paths, (tuple, list)):
             if isinstance(series_paths[0], (list, tuple)):
                 series_paths_list = series_paths
             elif isinstance(series_paths[0], str):
                 series_paths_list = [series_paths for _ in nnunet_path]
-        if isinstance(prediction_idx, int):
-            prediction_idx_list = [prediction_idx for _ in nnunet_path]
-        elif isinstance(prediction_idx, (tuple, list)):
-            if isinstance(prediction_idx[0], (list, tuple)):
-                prediction_idx_list = prediction_idx
-            elif isinstance(prediction_idx[0], int):
-                prediction_idx_list = [prediction_idx for _ in nnunet_path]
+        if isinstance(class_idx, int) or class_idx is None:
+            class_idx_list = [class_idx for _ in nnunet_path]
+        elif isinstance(class_idx, (tuple, list)):
+            class_idx_list = class_idx
         proba_threshold = coherce_to_list(proba_threshold, len(nnunet_path))
         min_confidence = coherce_to_list(min_confidence, len(nnunet_path))
 
@@ -375,7 +358,7 @@ def wraper(
                 predictor=predictor,
                 nnunet_path=nnunet_path[i].strip(),
                 series_paths=series_paths[i],
-                prediction_idx=prediction_idx_list[i],
+                class_idx=class_idx_list[i],
                 checkpoint_name=checkpoint_name.strip(),
                 output_dir=out,
                 tmp_dir=tmp_dir,
@@ -406,12 +389,8 @@ def wraper(
     mask = sitk.ReadImage(mask_path)
 
     output_names = {
-        "prediction": (
-            "prediction" if suffix is None else f"prediction_{suffix}"
-        ),
-        "probabilities": (
-            "probabilities" if suffix is None else f"proba_{suffix}"
-        ),
+        "prediction": ("prediction" if suffix is None else f"prediction_{suffix}"),
+        "probabilities": ("probabilities" if suffix is None else f"proba_{suffix}"),
         "struct": "struct" if suffix is None else f"struct_{suffix}",
     }
 
@@ -434,9 +413,7 @@ def wraper(
 
     if is_dicom is True:
         if metadata_path is None:
-            raise ValueError(
-                "if is_dicom is True metadata_path must be specified"
-            )
+            raise ValueError("if is_dicom is True metadata_path must be specified")
         status = export_to_dicom_seg(
             mask,
             metadata_path=metadata_path,
@@ -454,9 +431,7 @@ def wraper(
                 output_dir=output_dir,
                 output_file_name=output_names["struct"],
             )
-            output_paths["dicom_struct"] = (
-                f"{output_dir}/{output_names['struct']}.dcm"
-            )
+            output_paths["dicom_struct"] = f"{output_dir}/{output_names['struct']}.dcm"
             output_paths["dicom_segmentation"] = (
                 f"{output_dir}/{output_names['prediction']}.dcm"
             )
@@ -477,45 +452,4 @@ def wraper(
                 f"{output_dir}/{output_names['probabilities']}.dcm"
             )
 
-    return output_paths
-
-
-def predict(
-    series_paths: list,
-    metadata_path: str,
-    mirroring: bool,
-    device_id: int,
-    params: dict,
-    nnunet_path: str,
-):
-    predictor = nnUNetPredictor(
-        tile_step_size=0.5,
-        use_gaussian=True,
-        use_mirroring=mirroring,
-        device=torch.device("cuda", device_id),
-        verbose=False,
-        verbose_preprocessing=False,
-        allow_tqdm=True,
-    )
-
-    for k in [
-        "nnunet_id",
-        "tta",
-        "min_mem",
-        "aliases",
-        "study_path",
-        "series_folders",
-    ]:
-        if k in params:
-            del params[k]
-
-    output_paths = wraper(
-        **params,
-        series_paths=series_paths,
-        predictor=predictor,
-        nnunet_path=nnunet_path,
-        metadata_path=metadata_path,
-    )
-    del predictor
-    torch.cuda.empty_cache()
     return output_paths
