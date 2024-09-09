@@ -1,8 +1,8 @@
 ---
-model_folder: /home/ccig/Desktop/Nuno/datasets/nnUNet_data/nnUNet_results
+model_folder: /home/jose_almeida/nnunet_docker/models
 models:
-  Dataset045_ProstateAll:
-    name: Dataset045_ProstateAll
+  prostate_whole_gland_model:
+    name: prostate_whole_gland_model
     # file containing metadata for DICOM-seg output
     aliases: [prostate]
     metadata: metadata_templates/whole-prostate.json
@@ -17,8 +17,8 @@ models:
       tta: true
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
-  Dataset051_ProstateAllZones:
-    name: Dataset051_ProstateAllZones
+  prostate_zone_model:
+    name: prostate_zone_model
     aliases: [prostate_zones]
     metadata: metadata_templates/prostate-zones.json
     min_mem: 4000
@@ -30,8 +30,8 @@ models:
       tta: true
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
-  Dataset068_AgressiveDiseasePCPNetMP:
-    name: Dataset068_AgressiveDiseasePCPNetMP
+  prostate_aggressive_lesion_model:
+    name: prostate_aggressive_lesion_model
     aliases: [aggressive_lesion]
     metadata: metadata_templates/prostate-lesion.json
     min_mem: 4000
@@ -43,3 +43,4 @@ models:
       tta: true
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
+      class_idx: 1 # required to save probability maps
