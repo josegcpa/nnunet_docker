@@ -1,0 +1,7 @@
+nnunetv2==2.5.1
+pydicom==2.4.4
+pydicom-seg==0.4.1
+PyYAML==6.0.2
+SimpleITK==2.3.1
+tqdm==4.66.5
+rt_utils
