@@ -171,9 +171,7 @@ class MultiClassWriter(BaseWriter):
         # Compute unique labels and their respective bounding boxes
         label_statistics_filter = sitk.LabelStatisticsImageFilter()
         label_statistics_filter.Execute(segmentation, segmentation)
-        unique_labels = set(
-            [x for x in label_statistics_filter.GetLabels() if x != 0]
-        )
+        unique_labels = set([x for x in label_statistics_filter.GetLabels() if x != 0])
         if len(unique_labels) == 0:
             raise ValueError("Segmentation does not contain any labels")
 
@@ -183,9 +181,7 @@ class MultiClassWriter(BaseWriter):
         )
         missing_declarations = unique_labels.difference(declared_segments)
         if missing_declarations:
-            missing_segment_numbers = ", ".join(
-                [str(x) for x in missing_declarations]
-            )
+            missing_segment_numbers = ", ".join([str(x) for x in missing_declarations])
             message = (
                 f"Skipping segment(s) {missing_segment_numbers}, since their "
                 "declaration is missing in the DICOM template"
@@ -200,8 +196,7 @@ class MultiClassWriter(BaseWriter):
         # Compute bounding boxes for each present label and optionally restrict
         # the volume to serialize to the joined maximum extent
         bboxs = {
-            x: label_statistics_filter.GetBoundingBox(x)
-            for x in labels_to_process
+            x: label_statistics_filter.GetBoundingBox(x) for x in labels_to_process
         }
         if self._inplane_cropping:
             min_x, min_y, _ = np.min([x[::2] for x in bboxs.values()], axis=0).tolist()  # type: ignore
@@ -215,9 +210,7 @@ class MultiClassWriter(BaseWriter):
         else:
             min_x, min_y = 0, 0
             max_x, max_y = segmentation.GetWidth(), segmentation.GetHeight()
-            logger.info(
-                f"Serializing image planes at full size ({max_x}, {max_y})"
-            )
+            logger.info(f"Serializing image planes at full size ({max_x}, {max_y})")
 
         # Create target dataset for storing serialized data
         result = SegmentationDataset(
@@ -261,9 +254,7 @@ class MultiClassWriter(BaseWriter):
             skipped_slices = []
             for slice_idx in range(min_z, max_z):
                 frame_index = (min_x, min_y, slice_idx)
-                frame_position = segmentation.TransformIndexToPhysicalPoint(
-                    frame_index
-                )
+                frame_position = segmentation.TransformIndexToPhysicalPoint(frame_index)
                 frame_data = np.equal(
                     buffer[slice_idx, min_y:max_y, min_x:max_x], segment
                 )
@@ -325,9 +316,7 @@ class FractionalWriter(BaseWriter):
         skip_empty_slices: bool = True,
         skip_missing_segment: bool = False,
     ):
-        super().__init__(
-            template, False, skip_empty_slices, skip_missing_segment
-        )
+        super().__init__(template, False, skip_empty_slices, skip_missing_segment)
 
     def write(
         self,
@@ -353,17 +342,13 @@ class FractionalWriter(BaseWriter):
         )
 
         # Check if all present labels where declared in the DICOM template
-        unique_labels = set(
-            range(1, segmentation.GetNumberOfComponentsPerPixel() + 1)
-        )
+        unique_labels = set(range(1, segmentation.GetNumberOfComponentsPerPixel() + 1))
         declared_segments = set(
             [x.SegmentNumber for x in self._template.SegmentSequence]
         )
         missing_declarations = unique_labels.difference(declared_segments)
         if missing_declarations:
-            missing_segment_numbers = ", ".join(
-                [str(x) for x in missing_declarations]
-            )
+            missing_segment_numbers = ", ".join([str(x) for x in missing_declarations])
             message = (
                 f"Skipping segment(s) {missing_segment_numbers}, since their "
                 "declaration is missing in the DICOM template"
@@ -427,12 +412,8 @@ class FractionalWriter(BaseWriter):
             skipped_slices = []
             for slice_idx in range(min_z, max_z):
                 frame_index = (0, 0, slice_idx)
-                frame_position = segmentation.TransformIndexToPhysicalPoint(
-                    frame_index
-                )
-                frame_data = np.clip(
-                    segment_buffers[segment][slice_idx, ...], 0.0, 1.0
-                )
+                frame_position = segmentation.TransformIndexToPhysicalPoint(frame_index)
+                frame_data = np.clip(segment_buffers[segment][slice_idx, ...], 0.0, 1.0)
                 if self._skip_empty_slices and not frame_data.any():
                     skipped_slices.append(slice_idx)
                     continue
