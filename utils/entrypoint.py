@@ -9,7 +9,7 @@ from utils import (
     get_study_uid,
     export_to_dicom_seg,
     export_to_dicom_struct,
-    export_proba_map,
+    export_proba_map_and_mask,
     export_fractional_dicom_seg,
 )
 
@@ -24,11 +24,6 @@ def main(
     use_mirroring: bool = True,
     use_folds: tuple[int] = (0,),
     study_name: str = None,
-    proba_map: bool = False,
-    proba_threshold: float = 0.1,
-    min_confidence: float = None,
-    intersect_with: str | sitk.Image = None,
-    min_intersection: float = 0.1,
 ):
 
     os.environ["nnUNet_preprocessed"] = "tmp/preproc"
@@ -88,33 +83,14 @@ def main(
     predictor.predict_from_files(
         [prediction_files],
         output_dir,
-        save_probabilities=proba_map,
         num_processes_preprocessing=1,
         num_processes_segmentation_export=1,
+        save_probabilities=True,
     )
-
-    proba_map = export_proba_map(
-        prediction_files,
-        output_dir=output_dir,
-        min_confidence=min_confidence,
-        proba_threshold=proba_threshold,
-        intersect_with=intersect_with,
-        min_intersection=min_intersection,
-    )
-
-    output_mask_path = f"{output_dir}/prediction.nii.gz"
-    mask = sitk.Cast(proba_map > 0.5, sitk.sitkUInt16)
-    sitk.WriteImage(mask, output_mask_path)
 
     del predictor
 
-    return (
-        prediction_files,
-        output_mask_path,
-        study_name,
-        good_file_paths,
-        proba_map,
-    )
+    return prediction_files, good_file_paths
 
 
 if __name__ == "__main__":
@@ -232,6 +208,12 @@ if __name__ == "__main__":
         type=float,
     )
     parser.add_argument(
+        "--class_idx",
+        help="Class index.",
+        default=None,
+        type=int,
+    )
+    parser.add_argument(
         "--suffix",
         help="Adds a suffix (_suffix) to the outputs if specified.",
         default=None,
@@ -251,7 +233,7 @@ if __name__ == "__main__":
     folds = []
     for f in args.folds:
         folds.append(int(f))
-    sitk_files, mask_path, study_name, good_file_paths, proba_map = main(
+    sitk_files, good_file_paths = main(
         model_path=args.model_path.strip(),
         series_paths=series_paths,
         checkpoint_name=args.checkpoint_name.strip(),
@@ -261,25 +243,26 @@ if __name__ == "__main__":
         use_folds=folds,
         use_mirroring=args.tta,
         study_name=args.study_uid,
-        proba_map=args.proba_map,
-        proba_threshold=args.proba_threshold,
-        min_confidence=args.min_confidence,
-        intersect_with=args.intersect_with,
-        min_intersection=args.min_intersection,
     )
-
-    mask = sitk.ReadImage(mask_path)
 
     suffix = args.suffix
     output_names = {
-        "prediction": (
-            "prediction" if suffix is None else f"prediction_{suffix}"
-        ),
-        "probabilities": (
-            "probabilities" if suffix is None else f"proba_{suffix}"
-        ),
+        "prediction": ("prediction" if suffix is None else f"prediction_{suffix}"),
+        "probabilities": ("probabilities" if suffix is None else f"proba_{suffix}"),
         "struct": "struct" if suffix is None else f"struct_{suffix}",
     }
+
+    proba_map, mask = export_proba_map_and_mask(
+        sitk_files,
+        output_dir=args.output_dir,
+        min_confidence=args.min_confidence,
+        proba_threshold=args.proba_threshold,
+        intersect_with=args.intersect_with,
+        min_intersection=args.min_intersection,
+        output_proba_map_file_name=output_names["probabilities"],
+        output_mask_file_name=output_names["prediction"],
+        class_idx=args.class_idx,
+    )
 
     if args.save_nifti_inputs is True:
         for sitk_file in sitk_files:
@@ -302,17 +285,7 @@ if __name__ == "__main__":
             print("Mask is empty, skipping DICOMseg/RTstruct")
             exit()
 
-    if args.rt_struct_output:
-        export_to_dicom_struct(
-            mask,
-            metadata_path=args.metadata_path,
-            file_paths=good_file_paths,
-            output_dir=args.output_dir,
-            output_file_name=output_names["struct"],
-        )
-
-    if args.proba_map is True:
-        if args.is_dicom is True:
+        if args.proba_map is True and args.class_idx is not None:
             export_fractional_dicom_seg(
                 proba_map,
                 metadata_path=args.metadata_path,
@@ -320,3 +293,12 @@ if __name__ == "__main__":
                 output_dir=args.output_dir,
                 output_file_name=output_names["probabilities"],
             )
+
+    if args.rt_struct_output and args.class_idx is not None:
+        export_to_dicom_struct(
+            mask,
+            metadata_path=args.metadata_path,
+            file_paths=good_file_paths,
+            output_dir=args.output_dir,
+            output_file_name=output_names["struct"],
+        )
