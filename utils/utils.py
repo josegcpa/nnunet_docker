@@ -114,7 +114,9 @@ def filter_by_bvalue(
                 curr_bvalue = curr_bvalue.decode()
             curr_bvalue = str(curr_bvalue)
             if "[" in curr_bvalue and "]" in curr_bvalue:
-                curr_bvalue = curr_bvalue.strip().strip("[").strip("]").split(",")
+                curr_bvalue = (
+                    curr_bvalue.strip().strip("[").strip("]").split(",")
+                )
                 curr_bvalue = [int(x) for x in curr_bvalue]
             if isinstance(curr_bvalue, list) is False:
                 curr_bvalue = curr_bvalue.split("\\")
@@ -131,7 +133,9 @@ def filter_by_bvalue(
         return dicom_files
     if (target_bvalue not in unique_bvalues) and (exact is True):
         raise RuntimeError("Requested b-value not available")
-    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[0]
+    best_bvalue = sorted(unique_bvalues, key=lambda b: abs(b - target_bvalue))[
+        0
+    ]
     dicom_files = [f for f, b in zip(dicom_files, bvalues) if b == best_bvalue]
     return dicom_files
 
@@ -183,9 +187,15 @@ def resample_image(
     original_size = sitk_image.GetSize()
 
     out_size = [
-        int(np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))),
-        int(np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))),
-        int(np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))),
+        int(
+            np.round(original_size[0] * (original_spacing[0] / out_spacing[0]))
+        ),
+        int(
+            np.round(original_size[1] * (original_spacing[1] / out_spacing[1]))
+        ),
+        int(
+            np.round(original_size[2] * (original_spacing[2] / out_spacing[2]))
+        ),
     ]
 
     resample = sitk.ResampleImageFilter()
@@ -345,7 +355,9 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     orientation = list(map(float, orientation))
     orientation_sitk = dicom_orientation_to_sitk_direction(orientation)
     z_axis = 2
-    real_position = np.matmul(position, np.array(orientation_sitk).reshape([3, 3]))
+    real_position = np.matmul(
+        position, np.array(orientation_sitk).reshape([3, 3])
+    )
     z_position = np.sort(real_position[:, z_axis])
     z_spacing = np.median(np.diff(z_position))
     if np.isclose(z_spacing, 0) == True:
@@ -418,7 +430,9 @@ def export_to_dicom_seg(
     """
     import pydicom_seg
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+        metadata_path.strip()
+    )
     writer = pydicom_seg.MultiClassWriter(
         template=metadata_template,
         skip_empty_slices=True,
@@ -590,7 +604,9 @@ def export_fractional_dicom_seg(
     """
     from pydicom_seg_writers import FractionalWriter
 
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(metadata_path.strip())
+    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+        metadata_path.strip()
+    )
     writer = FractionalWriter(
         template=metadata_template,
         skip_empty_slices=True,

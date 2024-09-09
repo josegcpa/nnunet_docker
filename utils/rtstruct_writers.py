@@ -30,7 +30,9 @@ def save_mask_as_rtstruct(
         if binary_img.sum() > 0:  # only save none-empty images
 
             # rotate nii to match DICOM orientation
-            binary_img = np.rot90(binary_img, 1, (0, 1))  # rotate segmentation in-plane
+            binary_img = np.rot90(
+                binary_img, 1, (0, 1)
+            )  # rotate segmentation in-plane
 
             # add segmentation to RT Struct
             rtstruct.add_roi(

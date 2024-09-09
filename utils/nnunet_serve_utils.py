@@ -53,7 +53,9 @@ class InferenceRequest(BaseModel):
     checkpoint_name: str = Field(
         description="nnUNet checkpoint name", default="checkpoint_best.pth"
     )
-    tmp_dir: str = Field(description="Directory for temporary outputs", default=".tmp")
+    tmp_dir: str = Field(
+        description="Directory for temporary outputs", default=".tmp"
+    )
     is_dicom: bool = Field(
         description="Whether series_paths refers to DICOM series folders",
         default=False,
@@ -79,7 +81,9 @@ class InferenceRequest(BaseModel):
     min_overlap: float = Field(
         description="Minimum overlap for intersection", default=0.1
     )
-    save_proba_map: bool = Field(description="Saves the probability map", default=False)
+    save_proba_map: bool = Field(
+        description="Saves the probability map", default=False
+    )
     save_nifti_inputs: bool = Field(
         description="Saves the Nifti inputs in the output folder if input is DICOM",
         default=False,
@@ -87,7 +91,9 @@ class InferenceRequest(BaseModel):
     save_rt_struct_output: bool = Field(
         description="Saves the output as an RT struct file", default=False
     )
-    suffix: str | None = Field(description="Suffix for predictions", default=None)
+    suffix: str | None = Field(
+        description="Suffix for predictions", default=None
+    )
 
 
 def get_gpu_memory():
@@ -95,7 +101,9 @@ def get_gpu_memory():
     memory_free_info = (
         sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
     )
-    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+    memory_free_values = [
+        int(x.split()[0]) for i, x in enumerate(memory_free_info)
+    ]
     return memory_free_values
 
 
@@ -389,8 +397,12 @@ def wraper(
     mask = sitk.ReadImage(mask_path)
 
     output_names = {
-        "prediction": ("prediction" if suffix is None else f"prediction_{suffix}"),
-        "probabilities": ("probabilities" if suffix is None else f"proba_{suffix}"),
+        "prediction": (
+            "prediction" if suffix is None else f"prediction_{suffix}"
+        ),
+        "probabilities": (
+            "probabilities" if suffix is None else f"proba_{suffix}"
+        ),
         "struct": "struct" if suffix is None else f"struct_{suffix}",
     }
 
@@ -413,7 +425,9 @@ def wraper(
 
     if is_dicom is True:
         if metadata_path is None:
-            raise ValueError("if is_dicom is True metadata_path must be specified")
+            raise ValueError(
+                "if is_dicom is True metadata_path must be specified"
+            )
         status = export_to_dicom_seg(
             mask,
             metadata_path=metadata_path,
@@ -431,7 +445,9 @@ def wraper(
                 output_dir=output_dir,
                 output_file_name=output_names["struct"],
             )
-            output_paths["dicom_struct"] = f"{output_dir}/{output_names['struct']}.dcm"
+            output_paths["dicom_struct"] = (
+                f"{output_dir}/{output_names['struct']}.dcm"
+            )
             output_paths["dicom_segmentation"] = (
                 f"{output_dir}/{output_names['prediction']}.dcm"
             )

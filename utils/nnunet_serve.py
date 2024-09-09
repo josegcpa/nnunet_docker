@@ -33,14 +33,18 @@ if __name__ == "__main__":
                 alias_dict[alias] = model_name
             del models_specs["models"][k]["aliases"]
     if "model_folder" not in models_specs:
-        raise ValueError("model_folder must be specified in model-serve-spec.yaml")
+        raise ValueError(
+            "model_folder must be specified in model-serve-spec.yaml"
+        )
     grep_str = "|".join(
         [models_specs["models"][k]["name"] for k in models_specs["models"]]
     )
     pat = re.compile(grep_str)
 
     model_folder = models_specs["model_folder"]
-    model_paths = [os.path.dirname(x) for x in Path(model_folder).rglob("fold_0")]
+    model_paths = [
+        os.path.dirname(x) for x in Path(model_folder).rglob("fold_0")
+    ]
     print(grep_str, pat)
     model_dictionary = {}
     for m in model_paths:

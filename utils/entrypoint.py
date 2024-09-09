@@ -247,8 +247,12 @@ if __name__ == "__main__":
 
     suffix = args.suffix
     output_names = {
-        "prediction": ("prediction" if suffix is None else f"prediction_{suffix}"),
-        "probabilities": ("probabilities" if suffix is None else f"proba_{suffix}"),
+        "prediction": (
+            "prediction" if suffix is None else f"prediction_{suffix}"
+        ),
+        "probabilities": (
+            "probabilities" if suffix is None else f"proba_{suffix}"
+        ),
         "struct": "struct" if suffix is None else f"struct_{suffix}",
     }
 
