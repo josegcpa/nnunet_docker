@@ -12,6 +12,7 @@
         "labelID": 1,
         "SegmentDescription": "Whole prostate",
         "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentLabel": "Whole prostate",
         "SegmentAlgorithmName": "WholeProstatennUNet",
         "SegmentedPropertyCategoryCodeSequence": {
           "CodeValue": "123037004",
@@ -33,5 +34,5 @@
   ],
   "ContentLabel": "SEGMENTATION",
   "ContentDescription": "Image segmentation",
-  "ClinicalTrialCoordinatingCenterName": "dcmqi"
+  "ClinicalTrialCoordinatingCenterName": ""
 }

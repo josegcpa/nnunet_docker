@@ -10,18 +10,19 @@
     [
       {
         "labelID": 1,
-        "SegmentDescription": "PZ+CZ",
+        "SegmentDescription": "TZ+CZ",
         "SegmentAlgorithmType": "AUTOMATIC",
-        "SegmentAlgorithmName": "WholeProstatennUNet",
+        "SegmentLabel": "TZ+CZ",
+        "SegmentAlgorithmName": "ProstateZoneUNet",
         "SegmentedPropertyCategoryCodeSequence": {
-          "CodeValue": "123037004",
+          "CodeValue": "91723000",
           "CodingSchemeDesignator": "SCT",
-          "CodeMeaning": "Anatomical Structure"
+          "CodeMeaning": "Anatomical structure"
         },
         "SegmentedPropertyTypeCodeSequence": {
-          "CodeValue": "41216001",
+          "CodeValue": "399384005",
           "CodingSchemeDesignator": "SCT",
-          "CodeMeaning": "Prostate"
+          "CodeMeaning": "Structure of transition zone of prostate"
         },
         "recommendedDisplayRGBValue": [
           230,
@@ -31,18 +32,19 @@
       },
       {
         "labelID": 2,
-        "SegmentDescription": "TZ",
+        "SegmentDescription": "PZ",
         "SegmentAlgorithmType": "AUTOMATIC",
-        "SegmentAlgorithmName": "WholeProstatennUNet",
+        "SegmentLabel": "PZ",
+        "SegmentAlgorithmName": "ProstateZoneUNet",
         "SegmentedPropertyCategoryCodeSequence": {
-          "CodeValue": "123037004",
+          "CodeValue": "91723000",
           "CodingSchemeDesignator": "SCT",
-          "CodeMeaning": "Anatomical Structure"
+          "CodeMeaning": "Anatomical structure"
         },
         "SegmentedPropertyTypeCodeSequence": {
-          "CodeValue": "41216001",
+          "CodeValue": "279706003",
           "CodingSchemeDesignator": "SCT",
-          "CodeMeaning": "Prostate"
+          "CodeMeaning": "Structure of peripheral glandular zone of prostate"
         },
         "recommendedDisplayRGBValue": [
           142,
@@ -54,5 +56,5 @@
   ],
   "ContentLabel": "SEGMENTATION",
   "ContentDescription": "Image segmentation",
-  "ClinicalTrialCoordinatingCenterName": "dcmqi"
+  "ClinicalTrialCoordinatingCenterName": ""
 }

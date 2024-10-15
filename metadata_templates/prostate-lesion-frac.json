@@ -1,0 +1,256 @@
+{
+    "Modality": "SEG",
+    "Manufacturer": "",
+    "InstitutionName": "FPO",
+    "SeriesDescription": "t2_tse_tra_sfov_fpo_lesion_detection/probmask",
+    "ClinicalTrialTimePointID": "1",
+    "ClinicalTrialSeriesID": "Session1",
+    "BodyPartExamined": "PROSTATE",
+    "SliceThickness": 3.0,
+    "SpacingBetweenSlices": 3.0,
+    "SeriesNumber": 300,
+    "InstanceNumber": 1,
+    "ImageComments": "Multiclass segmentation",
+    "BitsAllocated": 8,
+    "BitsStored": 8,
+    "HighBit": 7,
+    "PixelRepresentation": 0,
+    "SegmentationType": "FRACTIONAL",
+    "segmentAttributes": [
+        [
+            {
+                "labelID": 1,
+                "SegmentNumber": 1,
+                "SegmentLabel": "Lesion <10%",
+                "SegmentDescription": "Prob Lesion 1.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    0,
+                    0,
+                    128
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 2,
+                "SegmentNumber": 2,
+                "SegmentLabel": "Lesion 10%-20%",
+                "SegmentDescription": "Prob Lesion 2.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    0,
+                    0,
+                    255
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 3,
+                "SegmentNumber": 3,
+                "SegmentLabel": "Lesion 20%-30%",
+                "SegmentDescription": "Prob Lesion 3.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    0,
+                    96,
+                    255
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 4,
+                "SegmentNumber": 4,
+                "SegmentLabel": "Lesion 30%-40%",
+                "SegmentDescription": "Prob Lesion 4.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    0,
+                    212,
+                    255
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 5,
+                "SegmentNumber": 5,
+                "SegmentLabel": "Lesion 40%-50%",
+                "SegmentDescription": "Prob Lesion 5.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    76,
+                    255,
+                    170
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 6,
+                "SegmentNumber": 6,
+                "SegmentLabel": "Lesion 50%-60%",
+                "SegmentDescription": "Prob Lesion 6.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    170,
+                    255,
+                    76
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 7,
+                "SegmentNumber": 7,
+                "SegmentLabel": "Lesion 60%-70%",
+                "SegmentDescription": "Prob Lesion 7.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    255,
+                    230,
+                    0
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 8,
+                "SegmentNumber": 8,
+                "SegmentLabel": "Lesion 70%-80%",
+                "SegmentDescription": "Prob Lesion 8.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    255,
+                    122,
+                    0
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 9,
+                "SegmentNumber": 9,
+                "SegmentLabel": "Lesion 80%-90%",
+                "SegmentDescription": "Prob Lesion 9.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    255,
+                    19,
+                    0
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            },
+            {
+                "labelID": 10,
+                "SegmentNumber": 10,
+                "SegmentLabel": "Lesion >90%",
+                "SegmentDescription": "Prob Lesion 10.0",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "recommendedDisplayRGBValue": [
+                    128,
+                    0,
+                    0
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "M-01000",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Morphologically Altered Structure"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "M-01100",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Lesion"
+                }
+            }
+        ]
+    ],
+    "ContentLabel": "SEGMENTATION",
+    "ContentDescription": "Image segmentation",
+    "ContentCreatorName": "Reader1 Aipoc"
+}

@@ -10,9 +10,9 @@
       [
         {
           "labelID": 1,
-          "SegmentDescription": "Lesion",
+          "SegmentDescription": "Aggressive lesion",
           "SegmentAlgorithmType": "AUTOMATIC",
-          "SegmentLabel": "Lesion",
+          "SegmentLabel": "Aggressive lesion",
           "SegmentAlgorithmName": "LesionUNet",
           "AnatomicRegionSequence": {
             "CodeValue": "41216001",
