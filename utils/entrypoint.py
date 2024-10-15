@@ -132,6 +132,20 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
+        "--fractional_metadata_path",
+        help="Path to metadata template for fractional DICOM-Seg output \
+            (defaults to --metadata_path)",
+        default=None,
+    )
+    parser.add_argument(
+        "--fractional_as_segments",
+        help="Converts the fractional output to a categorical DICOM-Seg with \
+            discretized probabilities (the number of discretized probabilities \
+            is specified as the number of segmentAttributes in metadata_path \
+            or fractional_metadata_path)",
+        action="store_true",
+    )
+    parser.add_argument(
         "--study_uid",
         "-s",
         help="Study UID if series are SimpleITK-readable files",
@@ -290,12 +304,17 @@ if __name__ == "__main__":
             exit()
 
         if args.proba_map is True and args.class_idx is not None:
+            if args.fractional_metadata_path is None:
+                metadata_path = args.metadata_path
+            else:
+                metadata_path = args.fractional_metadata_path
             export_fractional_dicom_seg(
                 proba_map,
-                metadata_path=args.metadata_path,
+                metadata_path=metadata_path,
                 file_paths=good_file_paths,
                 output_dir=args.output_dir,
                 output_file_name=output_names["probabilities"],
+                fractional_as_segments=args.fractional_as_segments,
             )
 
     if args.rt_struct_output and args.class_idx is not None:

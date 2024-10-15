@@ -5,3 +5,4 @@ PyYAML==6.0.2
 SimpleITK==2.3.1
 tqdm==4.66.5
 rt_utils
+dcmqi

@@ -18,6 +18,9 @@ Folds = (
     | tuple[int, int, int, int, int]
 )
 
+RESCALE_INTERCEPT_TAG = (0x0028, 0x1052)
+RESCALE_SLOPE_TAG = (0x0028, 0x1053)
+
 
 def copy_information_nd(
     target_image: sitk.Image, source_image: sitk.Image
@@ -328,6 +331,14 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
         sitk.Image: SimpleITK image made up of the dcms in file_paths.
     """
 
+    def get_pixel_data(f) -> np.ndarray:
+        intercept, scale = 0, 1
+        if RESCALE_INTERCEPT_TAG in f:
+            intercept = f[RESCALE_INTERCEPT_TAG].value
+        if RESCALE_SLOPE_TAG in f:
+            scale = f[RESCALE_SLOPE_TAG].value
+        return f.pixel_array * scale + intercept
+
     fs = []
     good_file_paths = []
     orientation = None
@@ -372,7 +383,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     pixel_spacing_sitk = pixel_spacing
     try:
         pixel_data = np.stack(
-            [f.pixel_array for f in fs],
+            [get_pixel_data(f) for f in fs],
         )
     except Exception as e:
         print(e)
@@ -445,6 +456,53 @@ def export_to_dicom_seg(
     output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom output to {output_dcm_path}")
     dcm.save_as(output_dcm_path)
+    return "success"
+
+
+def export_to_dicom_seg_dcmqi(
+    mask: sitk.Image,
+    mask_path: str,
+    metadata_path: str,
+    file_paths: Sequence[Sequence[str]],
+    output_dir: str,
+    output_file_name: str = "prediction",
+) -> str:
+    """
+    Exports a SITK image mask as a DICOM segmentation object with dcmqi.
+
+    Args:
+        mask (sitk.Image): an SITK file object corresponding to a mask.
+        mask_path (str): path to (S)ITK mask.
+        metadata_path (str): path to metadata template file.
+        file_paths (Sequence[str]): list of DICOM file paths corresponding to the
+            original series.
+        output_dir (str): path to output directory.
+        output_file_name (str, optional): output file name. Defaults to
+            "prediction".
+
+    Returns:
+        str: "success" if the process was successful, "empty mask" if the SITK
+            mask contained no values.
+    """
+    import subprocess
+
+    if sitk.GetArrayFromImage(mask).sum() == 0:
+        return "empty mask"
+    output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
+    print(f"converting to dicom-seg in {output_dcm_path}")
+    subprocess.call(
+        [
+            "itkimage2segimage",
+            "--inputDICOMList",
+            ",".join(file_paths[0]),
+            "--outputDICOM",
+            output_dcm_path,
+            "--inputImageList",
+            mask_path,
+            "--inputMetadata",
+            metadata_path,
+        ]
+    )
     return "success"
 
 
@@ -585,6 +643,7 @@ def export_fractional_dicom_seg(
     file_paths: Sequence[Sequence[str]],
     output_dir: str,
     output_file_name: str = "probabilities",
+    fractional_as_segments: bool = False,
 ):
     """
     Exports a SITK image mask as a fractional DICOM segmentation object.
@@ -597,29 +656,47 @@ def export_fractional_dicom_seg(
         output_dir (str): path to output directory.
         output_file_name (str, optional): output file name. Defaults to
             "probabilities".
+        fractional_as_segments (bool, optional): discretizes the fractional
+            probabilities into segments. The number of segments is the number
+            of segmentAttributes in metadata_path. Defaults to False.
 
     Returns:
         str: "success" if the process was successful, "empty mask" if the SITK
             mask contained no values.
     """
-    from pydicom_seg_writers import FractionalWriter
-
-    metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
-        metadata_path.strip()
-    )
-    writer = FractionalWriter(
-        template=metadata_template,
-        skip_empty_slices=True,
-        skip_missing_segment=False,
-    )
-
     if sitk.GetArrayFromImage(proba_map).sum() == 0:
         return "empty probability map"
+    
+    if fractional_as_segments is False:
+        from pydicom_seg_writers import FractionalWriter
 
-    dcm = writer.write(proba_map, file_paths[0])
-    output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
-    print(f"writing dicom output to {output_dcm_path}")
-    dcm.save_as(output_dcm_path)
+        metadata_template = pydicom_seg.template.from_dcmqi_metainfo(
+            metadata_path.strip()
+        )
+        writer = FractionalWriter(
+            template=metadata_template,
+            skip_empty_slices=True,
+            skip_missing_segment=False,
+        )
+
+        dcm = writer.write(proba_map, file_paths[0])
+        output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
+        print(f"writing dicom output to {output_dcm_path}")
+        dcm.save_as(output_dcm_path)
+    else:
+        with open(metadata_path) as o:
+            n_segments = len(json.load(o)["segmentAttributes"][0])
+        proba_map = sitk.Cast(proba_map * n_segments, sitk.sitkInt32)
+        tmp_proba_path = f"{output_dir}/discrete_probabilities.nii.gz"
+        sitk.WriteImage(proba_map, tmp_proba_path)
+        export_to_dicom_seg_dcmqi(
+            mask=proba_map,
+            mask_path=tmp_proba_path,
+            metadata_path=metadata_path,
+            file_paths=file_paths,
+            output_dir=output_dir,
+            output_file_name=output_file_name,
+        )
 
     return "success"
 
