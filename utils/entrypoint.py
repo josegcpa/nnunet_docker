@@ -11,6 +11,7 @@ from utils import (
     export_to_dicom_struct,
     export_proba_map_and_mask,
     export_fractional_dicom_seg,
+    make_parser,
 )
 
 
@@ -96,143 +97,7 @@ def main(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        "Entrypoint for nnUNet prediction. Handles all data format conversions."
-    )
-
-    parser.add_argument(
-        "--series_paths",
-        "-i",
-        nargs="+",
-        help="Path to input series",
-        required=True,
-    )
-    parser.add_argument(
-        "--model_path",
-        "-m",
-        help="Path to nnUNet model folder",
-        required=True,
-    )
-    parser.add_argument(
-        "--checkpoint_name",
-        "-ckpt",
-        help="Checkpoint name for nnUNet",
-        default="checkpoint_best.pth",
-    )
-    parser.add_argument(
-        "--output_dir",
-        "-o",
-        help="Path to output directory",
-        required=True,
-    )
-    parser.add_argument(
-        "--metadata_path",
-        "-M",
-        help="Path to metadata template for DICOM-Seg output",
-        required=True,
-    )
-    parser.add_argument(
-        "--fractional_metadata_path",
-        help="Path to metadata template for fractional DICOM-Seg output \
-            (defaults to --metadata_path)",
-        default=None,
-    )
-    parser.add_argument(
-        "--fractional_as_segments",
-        help="Converts the fractional output to a categorical DICOM-Seg with \
-            discretized probabilities (the number of discretized probabilities \
-            is specified as the number of segmentAttributes in metadata_path \
-            or fractional_metadata_path)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--study_uid",
-        "-s",
-        help="Study UID if series are SimpleITK-readable files",
-        default=None,
-    )
-    parser.add_argument(
-        "--folds",
-        "-f",
-        help="Sets which folds should be used with nnUNet",
-        nargs="+",
-        type=str,
-        default=(0,),
-    )
-    parser.add_argument(
-        "--tta",
-        "-t",
-        help="Uses test-time augmentation during prediction",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--tmp_dir",
-        help="Temporary directory",
-        default=".tmp",
-    )
-    parser.add_argument(
-        "--is_dicom",
-        "-D",
-        help="Assumes input is DICOM (and also converts to DICOM seg; \
-            prediction.dcm in output_dir)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--proba_map",
-        "-p",
-        help="Produces a Nifti format probability map (probabilities.nii.gz \
-            in output_dir)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--proba_threshold",
-        help="Sets probabilities in proba_map lower than proba_threhosld to 0",
-        type=float,
-        default=0.1,
-    )
-    parser.add_argument(
-        "--min_confidence",
-        help="Removes objects whose max prob is smaller than min_confidence",
-        type=float,
-        default=None,
-    )
-    parser.add_argument(
-        "--rt_struct_output",
-        help="Produces a DICOM RT Struct file (struct.dcm in output_dir)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--save_nifti_inputs",
-        "-S",
-        help="Moves Nifti inputs to output folder (volume_XXXX.nii.gz in \
-            output_dir)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--intersect_with",
-        help="Calculates the IoU with the sitk mask image in this path and uses\
-            this value to filter images such that IoU < --min_intersection are ruled out.",
-        default=None,
-        type=str,
-    )
-    parser.add_argument(
-        "--min_intersection",
-        help="Minimum intersection over the union to keep a candidate.",
-        default=0.1,
-        type=float,
-    )
-    parser.add_argument(
-        "--class_idx",
-        help="Class index.",
-        default=None,
-        type=int,
-    )
-    parser.add_argument(
-        "--suffix",
-        help="Adds a suffix (_suffix) to the outputs if specified.",
-        default=None,
-        type=str,
-    )
+    parser = make_parser()
 
     args = parser.parse_args()
 
