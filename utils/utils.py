@@ -682,9 +682,7 @@ def export_fractional_dicom_seg(
     else:
         with open(metadata_path) as o:
             n_segments = len(json.load(o)["segmentAttributes"][0])
-        print(np.unique(sitk.GetArrayFromImage(proba_map)))
         proba_map = sitk.Cast(proba_map * n_segments, sitk.sitkInt32)
-        print(np.unique(sitk.GetArrayFromImage(proba_map)))
         tmp_proba_path = f"{output_dir}/discrete_probabilities.nii.gz"
         sitk.WriteImage(proba_map, tmp_proba_path)
         export_to_dicom_seg_dcmqi(
