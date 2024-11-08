@@ -1,21 +1,14 @@
 {
-    "Modality": "SEG",
-    "Manufacturer": "",
-    "InstitutionName": "FPO",
-    "SeriesDescription": "t2_tse_tra_sfov_fpo_lesion_detection/probmask",
-    "ClinicalTrialTimePointID": "1",
+    "ContentCreatorName": "Computational Clinical Imaging Group",
     "ClinicalTrialSeriesID": "Session1",
-    "BodyPartExamined": "PROSTATE",
-    "SliceThickness": 3.0,
-    "SpacingBetweenSlices": 3.0,
-    "SeriesNumber": 300,
-    "InstanceNumber": 1,
+    "ClinicalTrialTimePointID": "1",
+    "SeriesDescription": "Segmentation",
+    "SeriesNumber": "300",
+    "InstanceNumber": "1",
+    "BodyPartExamined": "Prostate",
+    "Manufacturer": "",
+    "InstitutionName": "Champalimaud Foundation",
     "ImageComments": "Multiclass segmentation",
-    "BitsAllocated": 8,
-    "BitsStored": 8,
-    "HighBit": 7,
-    "PixelRepresentation": 0,
-    "SegmentationType": "FRACTIONAL",
     "segmentAttributes": [
         [
             {
@@ -24,7 +17,7 @@
                 "SegmentLabel": "Lesion <10%",
                 "SegmentDescription": "Prob Lesion 1.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     0,
                     0,
@@ -47,7 +40,7 @@
                 "SegmentLabel": "Lesion 10%-20%",
                 "SegmentDescription": "Prob Lesion 2.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     0,
                     0,
@@ -70,7 +63,7 @@
                 "SegmentLabel": "Lesion 20%-30%",
                 "SegmentDescription": "Prob Lesion 3.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     0,
                     96,
@@ -93,7 +86,7 @@
                 "SegmentLabel": "Lesion 30%-40%",
                 "SegmentDescription": "Prob Lesion 4.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     0,
                     212,
@@ -116,7 +109,7 @@
                 "SegmentLabel": "Lesion 40%-50%",
                 "SegmentDescription": "Prob Lesion 5.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     76,
                     255,
@@ -139,7 +132,7 @@
                 "SegmentLabel": "Lesion 50%-60%",
                 "SegmentDescription": "Prob Lesion 6.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     170,
                     255,
@@ -162,7 +155,7 @@
                 "SegmentLabel": "Lesion 60%-70%",
                 "SegmentDescription": "Prob Lesion 7.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     255,
                     230,
@@ -185,7 +178,7 @@
                 "SegmentLabel": "Lesion 70%-80%",
                 "SegmentDescription": "Prob Lesion 8.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     255,
                     122,
@@ -208,7 +201,7 @@
                 "SegmentLabel": "Lesion 80%-90%",
                 "SegmentDescription": "Prob Lesion 9.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     255,
                     19,
@@ -231,7 +224,7 @@
                 "SegmentLabel": "Lesion >90%",
                 "SegmentDescription": "Prob Lesion 10.0",
                 "SegmentAlgorithmType": "AUTOMATIC",
-                "SegmentAlgorithmName": "Model 1 AIPOCRATECH",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
                 "recommendedDisplayRGBValue": [
                     128,
                     0,
@@ -251,6 +244,5 @@
         ]
     ],
     "ContentLabel": "SEGMENTATION",
-    "ContentDescription": "Image segmentation",
-    "ContentCreatorName": "Reader1 Aipoc"
+    "ContentDescription": "Image segmentation"
 }

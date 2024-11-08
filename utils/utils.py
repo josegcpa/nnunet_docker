@@ -3,8 +3,8 @@ import numpy as np
 import SimpleITK as sitk
 import pydicom_seg
 import json
+import argparse
 from glob import glob
-from typing import List, Dict
 from pydicom import dcmread
 from scipy import ndimage
 
@@ -317,15 +317,15 @@ def get_contiguous_arr_idxs(
     return output_segment_idxs
 
 
-def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
+def read_dicom_as_sitk(file_paths: list[str], metadata: dict[str, str] = {}):
     """
     Reads a DICOM file as SITK, using z-spacing to order slices in the
     volume.
 
     Args:
-        file_paths (List[str]): list of file paths belonging to the same
+        file_paths (list[str]): list of file paths belonging to the same
             series.
-        metadata (Dict[str,str]): sets as SITK metadata. Defaults to {}.
+        metadata (dict[str,str]): sets as SITK metadata. Defaults to {}.
 
     Returns:
         sitk.Image: SimpleITK image made up of the dcms in file_paths.
@@ -400,7 +400,7 @@ def read_dicom_as_sitk(file_paths: List[str], metadata: Dict[str, str] = {}):
     return sitk_image, good_file_paths
 
 
-def get_study_uid(dicom_dir: List[str]) -> str:
+def get_study_uid(dicom_dir: str) -> str:
     """
     Returns the study UID field from a random file in dicom_dir.
 
@@ -450,8 +450,6 @@ def export_to_dicom_seg(
         skip_missing_segment=False,
     )
 
-    if sitk.GetArrayFromImage(mask).sum() == 0:
-        return "empty mask"
     dcm = writer.write(mask, file_paths[0])
     output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom output to {output_dcm_path}")
@@ -460,7 +458,6 @@ def export_to_dicom_seg(
 
 
 def export_to_dicom_seg_dcmqi(
-    mask: sitk.Image,
     mask_path: str,
     metadata_path: str,
     file_paths: Sequence[Sequence[str]],
@@ -486,13 +483,12 @@ def export_to_dicom_seg_dcmqi(
     """
     import subprocess
 
-    if sitk.GetArrayFromImage(mask).sum() == 0:
-        return "empty mask"
     output_dcm_path = f"{output_dir}/{output_file_name}.dcm"
     print(f"converting to dicom-seg in {output_dcm_path}")
     subprocess.call(
         [
             "itkimage2segimage",
+            "--skip",
             "--inputDICOMList",
             ",".join(file_paths[0]),
             "--outputDICOM",
@@ -535,8 +531,6 @@ def export_to_dicom_struct(
     print(f"writing dicom struct to {rt_struct_output}")
 
     mask_array = np.transpose(sitk.GetArrayFromImage(mask), [1, 2, 0])
-    if mask_array.sum() == 0:
-        return "empty mask"
 
     with open(metadata_path.strip()) as o:
         metadata = json.load(o)
@@ -607,6 +601,7 @@ def export_proba_map_and_mask(
     output_mask = f"{output_dir}/{output_mask_file_name}.nii.gz"
     input_file = sitk.ReadImage(sitk_files[0])
     proba_array: np.ndarray = np.load(input_proba_map)["probabilities"]
+    empty = False
     if class_idx is None:
         mask = np.argmax(proba_array, 0)
         proba_array = np.moveaxis(proba_array, 0, -1)
@@ -624,6 +619,10 @@ def export_proba_map_and_mask(
             min_intersection=min_intersection,
         )
         mask = proba_array > proba_threshold
+    if mask.sum() == 0:
+        mask[0, 0, 0] = 1
+        proba_array[0, 0, 0] = 1
+        empty = True
     proba_map = sitk.GetImageFromArray(proba_array)
     proba_map = copy_information_nd(proba_map, input_file)
     mask = sitk.GetImageFromArray(mask.astype(np.uint32))
@@ -634,7 +633,7 @@ def export_proba_map_and_mask(
     print(f"writing mask to {output_mask}")
     sitk.WriteImage(mask, output_mask)
 
-    return proba_map, mask
+    return proba_map, mask, empty
 
 
 def export_fractional_dicom_seg(
@@ -664,9 +663,6 @@ def export_fractional_dicom_seg(
         str: "success" if the process was successful, "empty mask" if the SITK
             mask contained no values.
     """
-    if sitk.GetArrayFromImage(proba_map).sum() == 0:
-        return "empty probability map"
-    
     if fractional_as_segments is False:
         from pydicom_seg_writers import FractionalWriter
 
@@ -686,11 +682,12 @@ def export_fractional_dicom_seg(
     else:
         with open(metadata_path) as o:
             n_segments = len(json.load(o)["segmentAttributes"][0])
+        print(np.unique(sitk.GetArrayFromImage(proba_map)))
         proba_map = sitk.Cast(proba_map * n_segments, sitk.sitkInt32)
+        print(np.unique(sitk.GetArrayFromImage(proba_map)))
         tmp_proba_path = f"{output_dir}/discrete_probabilities.nii.gz"
         sitk.WriteImage(proba_map, tmp_proba_path)
         export_to_dicom_seg_dcmqi(
-            mask=proba_map,
             mask_path=tmp_proba_path,
             metadata_path=metadata_path,
             file_paths=file_paths,
@@ -699,6 +696,54 @@ def export_fractional_dicom_seg(
         )
 
     return "success"
+
+
+def export_dicom_files(
+    output_dir: str,
+    prediction_name: str,
+    probabilities_name: str,
+    struct_name: str,
+    metadata_path: str,
+    fractional_metadata_path: str,
+    fractional_as_segments: bool,
+    dicom_file_paths: list[str],
+    mask: sitk.Image,
+    proba_map: sitk.Image,
+    save_proba_map: bool,
+    save_rt_struct: bool,
+    class_idx: int | None = None,
+):
+    mask_path = f"{output_dir}/{prediction_name}.nii.gz"
+    export_to_dicom_seg_dcmqi(
+        mask_path=mask_path,
+        metadata_path=metadata_path,
+        file_paths=dicom_file_paths,
+        output_dir=output_dir,
+        output_file_name=prediction_name,
+    )
+
+    if save_proba_map is True and class_idx is not None:
+        if fractional_metadata_path is None:
+            curr_metadata_path = metadata_path
+        else:
+            curr_metadata_path = fractional_metadata_path
+        export_fractional_dicom_seg(
+            proba_map,
+            metadata_path=curr_metadata_path,
+            file_paths=dicom_file_paths,
+            output_dir=output_dir,
+            output_file_name=probabilities_name,
+            fractional_as_segments=fractional_as_segments,
+        )
+
+    if save_rt_struct and class_idx is not None:
+        export_to_dicom_struct(
+            mask,
+            metadata_path=metadata_path,
+            file_paths=dicom_file_paths,
+            output_dir=output_dir,
+            output_file_name=struct_name,
+        )
 
 
 def calculate_iou(a: np.ndarray, b: np.ndarray) -> float:
@@ -821,3 +866,148 @@ def extract_lesion_candidates(
         all_hard_blobs += hard_blob
         confidences.append((idx, max_prob))
     return all_hard_blobs, confidences, blobs_index
+
+
+def make_parser(
+    description: str = "Entrypoint for nnUNet prediction. Handles all data format conversions.",
+):
+    parser = argparse.ArgumentParser(description)
+    parser.add_argument(
+        "--series_paths",
+        "-i",
+        nargs="+",
+        help="Path to input series",
+        required=True,
+    )
+    parser.add_argument(
+        "--model_path",
+        "-m",
+        help="Path to nnUNet model folder",
+        required=True,
+    )
+    parser.add_argument(
+        "--checkpoint_name",
+        "-ckpt",
+        help="Checkpoint name for nnUNet",
+        default="checkpoint_best.pth",
+    )
+    parser.add_argument(
+        "--output_dir",
+        "-o",
+        help="Path to output directory",
+        required=True,
+    )
+    parser.add_argument(
+        "--metadata_path",
+        "-M",
+        help="Path to metadata template for DICOM-Seg output",
+        required=True,
+    )
+    parser.add_argument(
+        "--fractional_metadata_path",
+        help="Path to metadata template for fractional DICOM-Seg output \
+            (defaults to --metadata_path)",
+        default=None,
+    )
+    parser.add_argument(
+        "--empty_segment_metadata",
+        help="Path to metadata template for when predictions are empty",
+        default=None,
+    )
+    parser.add_argument(
+        "--fractional_as_segments",
+        help="Converts the fractional output to a categorical DICOM-Seg with \
+            discretized probabilities (the number of discretized probabilities \
+            is specified as the number of segmentAttributes in metadata_path \
+            or fractional_metadata_path)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--study_uid",
+        "-s",
+        help="Study UID if series are SimpleITK-readable files",
+        default=None,
+    )
+    parser.add_argument(
+        "--folds",
+        "-f",
+        help="Sets which folds should be used with nnUNet",
+        nargs="+",
+        type=str,
+        default=(0,),
+    )
+    parser.add_argument(
+        "--tta",
+        "-t",
+        help="Uses test-time augmentation during prediction",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--tmp_dir",
+        help="Temporary directory",
+        default=".tmp",
+    )
+    parser.add_argument(
+        "--is_dicom",
+        "-D",
+        help="Assumes input is DICOM (and also converts to DICOM seg; \
+            prediction.dcm in output_dir)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--proba_map",
+        "-p",
+        help="Produces a Nifti format probability map (probabilities.nii.gz \
+            in output_dir)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--proba_threshold",
+        help="Sets probabilities in proba_map lower than proba_threhosld to 0",
+        type=float,
+        default=0.1,
+    )
+    parser.add_argument(
+        "--min_confidence",
+        help="Removes objects whose max prob is smaller than min_confidence",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--rt_struct_output",
+        help="Produces a DICOM RT Struct file (struct.dcm in output_dir)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--save_nifti_inputs",
+        "-S",
+        help="Moves Nifti inputs to output folder (volume_XXXX.nii.gz in \
+            output_dir)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--intersect_with",
+        help="Calculates the IoU with the sitk mask image in this path and uses\
+            this value to filter images such that IoU < --min_intersection are ruled out.",
+        default=None,
+        type=str,
+    )
+    parser.add_argument(
+        "--min_intersection",
+        help="Minimum intersection over the union to keep a candidate.",
+        default=0.1,
+        type=float,
+    )
+    parser.add_argument(
+        "--class_idx",
+        help="Class index.",
+        default=None,
+        type=int,
+    )
+    parser.add_argument(
+        "--suffix",
+        help="Adds a suffix (_suffix) to the outputs if specified.",
+        default=None,
+        type=str,
+    )
+    return parser

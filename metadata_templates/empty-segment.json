@@ -1,0 +1,41 @@
+{
+    "ContentCreatorName": "Computational Clinical Imaging Group",
+    "ClinicalTrialSeriesID": "Session1",
+    "ClinicalTrialTimePointID": "1",
+    "SeriesDescription": "Segmentation",
+    "SeriesNumber": "300",
+    "InstanceNumber": "1",
+    "BodyPartExamined": "Prostate",
+    "Manufacturer": "",
+    "InstitutionName": "Champalimaud Foundation",
+    "ImageComments": "Multiclass segmentation",
+    "segmentAttributes": [
+        [
+            {
+                "labelID": 1,
+                "SegmentNumber": 1,
+                "SegmentLabel": "Empty segment",
+                "SegmentDescription": "Empty segment",
+                "SegmentAlgorithmType": "AUTOMATIC",
+                "SegmentAlgorithmName": "Model 1 Champalimaud Foundation",
+                "recommendedDisplayCIELabValue": [
+                    0,
+                    32896, 
+                    32896
+                ],
+                "SegmentedPropertyCategoryCodeSequence": {
+                    "CodeValue": "T-D0050",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Tissue"
+                },
+                "SegmentedPropertyTypeCodeSequence": {
+                    "CodeValue": "T-D0050",
+                    "CodingSchemeDesignator": "SRT",
+                    "CodeMeaning": "Tissue"
+                }
+            }
+        ]
+    ],
+    "ContentLabel": "SEGMENTATION",
+    "ContentDescription": "Image segmentation"
+}
