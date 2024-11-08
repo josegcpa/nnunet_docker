@@ -7,10 +7,8 @@ from utils import (
     resample_image_to_target,
     read_dicom_as_sitk,
     get_study_uid,
-    export_to_dicom_seg,
-    export_to_dicom_struct,
+    export_dicom_files,
     export_proba_map_and_mask,
-    export_fractional_dicom_seg,
     make_parser,
 )
 
@@ -133,7 +131,7 @@ if __name__ == "__main__":
         "struct": "struct" if suffix is None else f"struct_{suffix}",
     }
 
-    proba_map, mask = export_proba_map_and_mask(
+    proba_map, mask, empty = export_proba_map_and_mask(
         sitk_files,
         output_dir=args.output_dir,
         min_confidence=args.min_confidence,
@@ -154,37 +152,30 @@ if __name__ == "__main__":
             print(f"Copying Nifti to {output_nifti}")
             sitk.WriteImage(sitk.ReadImage(sitk_file), output_nifti)
 
-    if args.is_dicom is True:
-        status = export_to_dicom_seg(
-            mask,
-            metadata_path=args.metadata_path,
-            file_paths=good_file_paths,
-            output_dir=args.output_dir,
-            output_file_name=output_names["prediction"],
-        )
-        if "empty" in status:
-            print("Mask is empty, skipping DICOMseg/RTstruct")
-            exit()
+    if (empty is True) and (args.empty_segment_metadata is not None):
+        metadata_path = args.empty_segment_metadata
+        fractional_metadata_path = args.empty_segment_metadata
+        save_dicom = True
+    elif empty is False:
+        metadata_path = args.metadata_path
+        fractional_metadata_path = args.fractional_metadata_path
+        save_dicom = True
+    else:
+        print("Mask is empty, skipping DICOM formats")
 
-        if args.proba_map is True and args.class_idx is not None:
-            if args.fractional_metadata_path is None:
-                metadata_path = args.metadata_path
-            else:
-                metadata_path = args.fractional_metadata_path
-            export_fractional_dicom_seg(
-                proba_map,
-                metadata_path=metadata_path,
-                file_paths=good_file_paths,
-                output_dir=args.output_dir,
-                output_file_name=output_names["probabilities"],
-                fractional_as_segments=args.fractional_as_segments,
-            )
-
-    if args.rt_struct_output and args.class_idx is not None:
-        export_to_dicom_struct(
-            mask,
-            metadata_path=args.metadata_path,
-            file_paths=good_file_paths,
+    if save_dicom is True and args.is_dicom is True:
+        export_dicom_files(
             output_dir=args.output_dir,
-            output_file_name=output_names["struct"],
+            prediction_name=output_names["prediction"],
+            probabilities_name=output_names["probabilities"],
+            struct_name=output_names["struct"],
+            metadata_path=metadata_path,
+            fractional_metadata_path=fractional_metadata_path,
+            fractional_as_segments=args.fractional_as_segments,
+            dicom_file_paths=good_file_paths,
+            mask=mask,
+            proba_map=proba_map,
+            save_proba_map=args.proba_map,
+            save_rt_struct=args.rt_struct_output,
+            class_idx=args.class_idx,
         )
