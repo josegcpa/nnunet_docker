@@ -31,7 +31,16 @@ def save_mask_as_rtstruct(
     dcm_reference_file: str,
     output_path: str,
     segment_info: tuple[str, list[int]],
-):
+) -> None:
+    """
+    Converts a numpy array to an RT (radiotherapy) struct object.
+
+    Args:
+        img_data (np.ndarray): numpy array.
+        dcm_reference_file (str): reference DICOM files.
+        output_path (str): output file for RT struct file.
+        segment_info (tuple[str, list[int]]): segment information.
+    """
     # based on the TotalSegmentator implementation
 
     logging.basicConfig(level=logging.WARNING)  # avoid messages from rt_utils
