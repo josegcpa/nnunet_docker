@@ -50,12 +50,6 @@ def save_mask_as_rtstruct(
         class_name, class_colour = segment_info[class_idx - 1]
         binary_img = img_data == class_idx
         if binary_img.sum() > 0:  # only save none-empty images
-
-            # rotate nii to match DICOM orientation
-            binary_img = np.rot90(
-                binary_img, 1, (0, 1)
-            )  # rotate segmentation in-plane
-
             # add segmentation to RT Struct
             rtstruct.add_roi(
                 mask=binary_img,  # has to be a binary numpy array
