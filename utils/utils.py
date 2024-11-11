@@ -7,6 +7,10 @@ import argparse
 from glob import glob
 from pydicom import dcmread
 from scipy import ndimage
+import numpy as np
+import logging
+from tqdm import tqdm
+from rt_utils import RTStructBuilder
 
 from typing import Sequence
 
@@ -20,6 +24,46 @@ Folds = (
 
 RESCALE_INTERCEPT_TAG = (0x0028, 0x1052)
 RESCALE_SLOPE_TAG = (0x0028, 0x1053)
+
+
+def save_mask_as_rtstruct(
+    img_data: np.ndarray,
+    dcm_reference_file: str,
+    output_path: str,
+    segment_info: tuple[str, list[int]],
+):
+    # based on the TotalSegmentator implementation
+
+    logging.basicConfig(level=logging.WARNING)  # avoid messages from rt_utils
+
+    # create new RT Struct - requires original DICOM
+    rtstruct = RTStructBuilder.create_new(dicom_series_path=dcm_reference_file)
+
+    # retrieve selected classes
+    selected_classes = np.unique(img_data)
+    selected_classes = selected_classes[selected_classes > 0].tolist()
+    if len(selected_classes) == 0:
+        return None
+
+    # add mask to RT Struct
+    for class_idx in tqdm(selected_classes):
+        class_name, class_colour = segment_info[class_idx - 1]
+        binary_img = img_data == class_idx
+        if binary_img.sum() > 0:  # only save none-empty images
+
+            # rotate nii to match DICOM orientation
+            binary_img = np.rot90(
+                binary_img, 1, (0, 1)
+            )  # rotate segmentation in-plane
+
+            # add segmentation to RT Struct
+            rtstruct.add_roi(
+                mask=binary_img,  # has to be a binary numpy array
+                name=class_name,
+                color=class_colour,
+            )
+
+    rtstruct.save(str(output_path))
 
 
 def copy_information_nd(
@@ -488,7 +532,6 @@ def export_to_dicom_seg_dcmqi(
     subprocess.call(
         [
             "itkimage2segimage",
-            "--skip",
             "--inputDICOMList",
             ",".join(file_paths[0]),
             "--outputDICOM",
@@ -525,8 +568,6 @@ def export_to_dicom_struct(
         str: "success" if the process was successful, "empty mask" if the SITK
             mask contained no values.
     """
-    from rtstruct_writers import save_mask_as_rtstruct
-
     rt_struct_output = f"{output_dir}/{output_file_name}.dcm"
     print(f"writing dicom struct to {rt_struct_output}")
 
@@ -734,7 +775,7 @@ def export_dicom_files(
             fractional_as_segments=fractional_as_segments,
         )
 
-    if save_rt_struct and class_idx is not None:
+    if save_rt_struct:
         export_to_dicom_struct(
             mask,
             metadata_path=metadata_path,

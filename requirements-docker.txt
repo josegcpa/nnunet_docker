@@ -6,3 +6,5 @@ SimpleITK==2.3.1
 tqdm==4.66.5
 rt_utils
 dcmqi
+opencv-python
+acvl-utils==0.2.0
