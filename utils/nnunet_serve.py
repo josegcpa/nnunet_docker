@@ -1,3 +1,11 @@
+"""
+Implementation of a simple nnUNet server API. This is helpful for quicker
+inference as models can be pre-loaded. 
+
+Depends on ``model-serve-spec.yaml`` which should be specified in the directory
+where nnunet_serve is utilized.
+"""
+
 import time
 import re
 import os
