@@ -96,7 +96,14 @@ class InferenceRequest(BaseModel):
     )
 
 
-def get_gpu_memory():
+def get_gpu_memory() -> list[int]:
+    """
+    Utility to retrieve value for free GPU memory.
+
+    Returns:
+        list[int]: list of available GPU memory (each one corresponds to a GPU
+            index).
+    """
     command = "nvidia-smi --query-gpu=memory.free --format=csv"
     memory_free_info = (
         sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
@@ -111,7 +118,27 @@ def get_series_paths(
     study_path: str,
     series_folders: list[str] | list[list[str]] | None,
     n: int | None,
-) -> tuple[list[str], str, str] | tuple[list[list[str]], str, str]:
+) -> tuple[list[str] | list[list[str]], str, str]:
+    """
+    Gets the complete paths for series given a ``study_path`` and the names of
+    ``series_folders``. Given ``n``, which is the number of nnUNet models which
+    will be running, this returns different values:
+
+    * When ``n is None``: returns a list of paths, a status message, and a
+        possible error message.
+    * When ``n is not None and n > 0``: returns a list of list of paths, a
+        status message and a possible error message.
+
+    Args:
+        study_path (str): path to study.
+        series_folders (list[str] | list[list[str]] | None): series folder names
+            relative to ``study_path``.
+        n (int | None): number of nnUNet models to run. If None assumes a single
+            model is run.
+
+    Returns:
+        tuple[list[str], str, str] | tuple[list[list[str]], str, str]: _description_
+    """
     if series_folders is None:
         return (
             None,
@@ -138,6 +165,15 @@ def get_series_paths(
 
 
 def wait_for_gpu(min_mem: int) -> int:
+    """
+    Waits for a GPU with at least ``min_mem`` free memory to be free.
+
+    Args:
+        min_mem (int): minimum amount of memory.
+
+    Returns:
+        int: GPU ID corresponding to freest GPU.
+    """
     free = False
     while free is False:
         gpu_memory = get_gpu_memory()
@@ -151,6 +187,19 @@ def wait_for_gpu(min_mem: int) -> int:
 
 
 def get_default_params(default_args: dict | list[dict]) -> dict:
+    """
+    Returns a dict with default parameters. If ``default_args`` is a list of
+    dicts, the output will be a dictionary of lists whenever the key is in
+    ``args_with_mult_support`` and whose value will be that of the last
+    dictionary otherwise. If ``default_args`` is a dict the output will be
+    ``default_args``.
+
+    Args:
+        default_args (dict | list[dict]): default arguments.
+
+    Returns:
+        dict: correctly formatted default arguments.
+    """
     args_with_mult_support = [
         "proba_threshold",
         "min_confidence",
@@ -159,7 +208,7 @@ def get_default_params(default_args: dict | list[dict]) -> dict:
     ]
     if isinstance(default_args, dict):
         default_params = default_args
-    else:
+    elif isinstance(default_args, list):
         default_params = {}
         for curr_default_args in default_args:
             for k in curr_default_args:
@@ -169,6 +218,8 @@ def get_default_params(default_args: dict | list[dict]) -> dict:
                     default_params[k].append(curr_default_args[k])
                 else:
                     default_params[k] = curr_default_args[k]
+    else:
+        raise ValueError("default_args should either be dict or list")
     return default_params
 
 
