@@ -941,7 +941,19 @@ def extract_lesion_candidates(
 
 def make_parser(
     description: str = "Entrypoint for nnUNet prediction. Handles all data format conversions.",
-):
+) -> argparse.ArgumentParser:
+    """
+    Convenience function to generate ``argparse`` CLI parser. Helps with
+    consistent inputs when dealing with multiple entrypoints.
+
+    Args:
+        description (str, optional): description for the
+            ``argparse.ArgumentParser`` call. Defaults to "Entrypoint for nnUNet
+            prediction. Handles all data format conversions.".
+
+    Returns:
+        argparse.ArgumentParser: parser with specific args.
+    """
     parser = argparse.ArgumentParser(description)
     parser.add_argument(
         "--series_paths",
