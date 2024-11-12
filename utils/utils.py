@@ -761,6 +761,29 @@ def export_dicom_files(
     save_rt_struct: bool,
     class_idx: int | None = None,
 ):
+    """
+    Convenience function to export DICOM files.
+
+    Args:
+        output_dir (str): output directory.
+        prediction_name (str): name for binary or multi-class prediction file.
+        probabilities_name (str): name for probability prediction file.
+        struct_name (str): name for RT struct file.
+        metadata_path (str): path to metadata file (required for DICOM seg).
+        fractional_metadata_path (str): path to fractional metadata file (
+            required for DICOM seg). If ``None`` defaults to ``metadata_path``.
+        fractional_as_segments (bool): whether ``proba_map`` should be divided
+            into discrete classes according to the number of classes specified
+            in ``fractional_metadata_path``.
+        dicom_file_paths (list[str]): paths to the input DICOM file paths.
+        mask (sitk.Image): image corresponding to mask prediction.
+        proba_map (sitk.Image): image corresponding to probability map.
+        save_proba_map (bool): whether the probability map should be saved.
+        save_rt_struct (bool): whether the RT struct file should be saved.
+        class_idx (int | None, optional): index corresponding to the class which
+            should be used to export the fractional DICOM seg and the
+            exported probability map. Defaults to None.
+    """
     mask_path = f"{output_dir}/{prediction_name}.nii.gz"
     export_to_dicom_seg_dcmqi(
         mask_path=mask_path,
