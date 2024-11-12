@@ -399,6 +399,15 @@ def inference(
 
 
 def get_info(dataset_json_path: str) -> dict:
+    """
+    Loads an nnUNet dataset JSON path.
+
+    Args:
+        dataset_json_path (str): path to dataset JSON.
+
+    Returns:
+        dict: the dataset JSON.
+    """
     with open(dataset_json_path) as o:
         return json.load(o)
 
@@ -423,6 +432,44 @@ def wraper(
     suffix: str | None = None,
     metadata_path: str | None = None,
 ):
+    """
+    Prediction wraper.
+
+    Args:
+        predictor (nnUNetPredictor): nnUNetPredictor object.
+        nnunet_path (str | list[str]): path or paths to nnUNet models.
+        series_paths (list[str] | list[list[str]]): list of paths or list of
+            list of paths corresponding to series.
+        output_dir (str): output directory.
+        class_idx (int | list[int] | list[list[int]], optional): class index to
+            export probability maps. Defaults to 1.
+        checkpoint_name (str, optional): name of nnUNet checkpoint. Defaults to
+            "checkpoint_best.pth".
+        tmp_dir (str, optional): temporary directory. Defaults to ".tmp".
+        is_dicom (bool, optional): whether the input/output is DICOM. Defaults
+            to False.
+        use_folds (tuple[int], optional): which folds should be used. Defaults
+            to (0,).
+        proba_threshold (float | tuple[float] | list[float], optional):
+            probability threshold to consider a pixel positive. Defaults to 0.1.
+        min_confidence (float | tuple[float] | list[float] | None, optional):
+            minimum confidence to keep an object. Defaults to None.
+        intersect_with (str | sitk.Image | None, optional): whether the
+            prediction should intersect with a given object. Defaults to None.
+        min_overlap (float, optional): fraction of prediction which should
+            intersect with ``intersect_with``. Defaults to 0.1.
+        save_proba_map (bool, optional): whether to save the probability map.
+            Defaults to False.
+        save_nifti_inputs (bool, optional): whether to save the nifti inputs.
+            Defaults to False.
+        save_rt_struct_output (bool, optional): whether to save the prediction
+            as RT struct. Defaults to False.
+        suffix (str | None, optional): a suffix for the prediction. Defaults to
+            None.
+        metadata_path (str | None, optional): path to DICOM metadata file for
+            final prediction. Defaults to None.
+    """
+
     def coherce_to_list(obj: Any, n: int) -> list[Any] | tuple[Any]:
         if isinstance(obj, (list, tuple)):
             if len(obj) != n:
