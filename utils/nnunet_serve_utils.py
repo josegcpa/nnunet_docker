@@ -229,8 +229,22 @@ def predict(
     mirroring: bool,
     device_id: int,
     params: dict,
-    nnunet_path: str,
-):
+    nnunet_path: str | list[str],
+) -> list[str]:
+    """
+    Runs the prediction for a set of models.
+
+    Args:
+        series_paths (list): paths to series.
+        metadata_path (str): path to DICOM seg metadata.
+        mirroring (bool): whether to use mirroring during inference.
+        device_id (int): GPU identifier.
+        params (dict): parameters which will be used in wraper.
+        nnunet_path (str | list[str]): path or paths to nnUNet model.
+
+    Returns:
+        list[str]: list of output paths.
+    """
     predictor = nnUNetPredictor(
         tile_step_size=0.5,
         use_gaussian=True,
@@ -279,6 +293,41 @@ def inference(
     intersect_with: str | sitk.Image | None = None,
     min_overlap: float = 0.1,
 ) -> tuple[list[str], str, list[list[str]], sitk.Image]:
+    """
+    Runs the inference for a single model.
+
+    Args:
+        predictor (nnUNetPredictor): nnUNet predictor.
+        nnunet_path (str): path to nnUNet model.
+        series_paths (list[str]): paths to series.
+        output_dir (str): output directory.
+        class_idx (int | list[int], optional): class index for probability
+            output. Defaults to 1.
+        checkpoint_name (str, optional): name of checkpoint in nnUNet model.
+            Defaults to "checkpoint_best.pth".
+        tmp_dir (str, optional): directory where temporary outputs are stored.
+            Defaults to ".tmp".
+        is_dicom (bool, optional): whether the input/output is DICOM. Defaults
+            to False.
+        use_folds (Folds, optional): which folds from the nnUNet model will be
+            used. Defaults to (0,).
+        proba_threshold (float, optional): probability threshold to consider a
+            pixel positive positive. Defaults to 0.1.
+        min_confidence (float | None, optional): minimum confidence level for
+            each detected object. Defaults to None.
+        intersect_with (str | sitk.Image | None, optional): whether the
+            prediction should intersect with a given object. Defaults to None.
+        min_overlap (float, optional): fraction of prediction which should
+            intersect with ``intersect_with``. Defaults to 0.1.
+
+    Raises:
+        ValueError: if there is a mismatch between the number of series and
+            the number of channels in the model.
+
+    Returns:
+        tuple[list[str], str, list[list[str]], sitk.Image]: prediction files,
+            path to output mask, good DICOM file paths, probability map.
+    """
 
     # initializes the network architecture, loads the checkpoint
     predictor.initialize_from_trained_model_folder(
