@@ -15,6 +15,7 @@ import uvicorn
 import torch
 from dataclasses import dataclass
 from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 
 from .nnunet_serve_utils import (
     FAILURE_STATUS,
@@ -26,6 +27,8 @@ from .nnunet_serve_utils import (
     predict,
     InferenceRequest,
 )
+
+origins = ["http://localhost:8404"]
 
 
 @dataclass
@@ -213,6 +216,14 @@ def get_model_dictionary():
 
 app = fastapi.FastAPI()
 nnunet_api = nnUNetAPI(app)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 if __name__ == "__main__":
     uvicorn.run(nnunet_api.app, host="0.0.0.0", port=12345)
