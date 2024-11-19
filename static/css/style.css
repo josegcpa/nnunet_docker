@@ -1,0 +1,27 @@
+.container {
+  font-family: helvetica;
+  font-size: 24px;
+  margin: 0 auto;
+  width: 600px;
+  outline: dashed 1px black;
+  padding: 5px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 36px;
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+select {
+  width: 50%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 16px;
+}

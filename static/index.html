@@ -1,0 +1,27 @@
+<head>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Generic nnU-Net model serving</h1>
+        <select name="model-selection" id="model-selection">
+        </select>
+
+    </div>
+
+    <script>
+        const model_selection = document.getElementById("model-selection");
+
+        var model_info = fetch("http://0.0.0.0:8000/model_info", {
+        })
+            .then((response) => response.json())
+            .then((response) => {
+                options = [];
+                for (let key in response) {
+                    options.push([`<option value="${key}">${response[key]["name"]}</option>`]);
+                    model_selection.innerHTML = options.join("");
+                }
+            });
+    </script>
+</body>
