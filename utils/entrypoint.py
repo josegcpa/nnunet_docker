@@ -78,6 +78,7 @@ def main(
             # rewrite with correct nnunet formatting
             sitk.WriteImage(sitk.ReadImage(series_path), tmp_path)
             prediction_files.append(tmp_path)
+        good_file_paths = None
 
     predictor.predict_from_files(
         [prediction_files],
