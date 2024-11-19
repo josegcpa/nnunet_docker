@@ -13,9 +13,10 @@ import yaml
 import fastapi
 import uvicorn
 import torch
+from dataclasses import dataclass
 from pathlib import Path
 
-from nnunet_serve_utils import (
+from .nnunet_serve_utils import (
     FAILURE_STATUS,
     SUCCESS_STATUS,
     get_info,
@@ -27,64 +28,30 @@ from nnunet_serve_utils import (
 )
 
 
-if __name__ == "__main__":
-    app = fastapi.FastAPI()
+@dataclass
+class nnUNetAPI:
+    app: fastapi.FastAPI
 
-    with open("model-serve-spec.yaml") as o:
-        models_specs = yaml.safe_load(o)
-    alias_dict = {}
-    for k in models_specs["models"]:
-        model_name = models_specs["models"][k]["name"]
-        alias_dict[model_name] = model_name
-        if "aliases" in models_specs["models"][k]:
-            for alias in models_specs["models"][k]["aliases"]:
-                alias_dict[alias] = model_name
-            del models_specs["models"][k]["aliases"]
-    if "model_folder" not in models_specs:
-        raise ValueError(
-            "model_folder must be specified in model-serve-spec.yaml"
+    def __post_init__(self):
+        self.model_dictionary, self.alias_dict = get_model_dictionary()
+        self.app.add_api_route("/infer", self.infer, methods=["POST"])
+        self.app.add_api_route("/model_info", self.model_info, methods=["GET"])
+        self.app.add_api_route(
+            "/request-params", self.request_params, methods=["GET"]
         )
-    grep_str = "|".join(
-        [models_specs["models"][k]["name"] for k in models_specs["models"]]
-    )
-    pat = re.compile(grep_str)
 
-    model_folder = models_specs["model_folder"]
-    model_paths = [
-        os.path.dirname(x) for x in Path(model_folder).rglob("fold_0")
-    ]
-    print(grep_str, pat)
-    model_dictionary = {}
-    for m in model_paths:
-        match = pat.search(m)
-        if match is not None:
-            match = match.group()
-            model_dictionary[match] = {
-                "path": m,
-                "model_information": get_info(f"{m}/dataset.json"),
-            }
+    def model_info(self):
+        return self.model_dictionary
 
-    model_dictionary = {
-        m: {
-            **model_dictionary[m],
-            **models_specs["models"].get(m, None),
-            "default_args": models_specs["models"][m].get("default_args", {}),
-        }
-        for m in model_dictionary
-        if m in models_specs["models"]
-    }
+    def request_params(self):
+        return InferenceRequest.model_json_schema()
 
-    @app.get("/model_info")
-    def model_info():
-        return model_dictionary
-
-    @app.post("/infer")
-    def infer(inference_request: InferenceRequest):
+    def infer(self, inference_request: InferenceRequest):
         params = inference_request.__dict__
         nnunet_id = params["nnunet_id"]
         # check if nnunet_id is a list
         if isinstance(nnunet_id, str):
-            if nnunet_id not in alias_dict:
+            if nnunet_id not in self.alias_dict:
                 return {
                     "time_elapsed": None,
                     "gpu": None,
@@ -94,7 +61,7 @@ if __name__ == "__main__":
                     "status": FAILURE_STATUS,
                     "error": f"{nnunet_id} is not a valid nnunet_id",
                 }
-            nnunet_info = model_dictionary[alias_dict[nnunet_id]]
+            nnunet_info = self.model_dictionary[self.alias_dict[nnunet_id]]
             nnunet_path = nnunet_info["path"]
             min_mem = nnunet_info.get("min_mem", 4000)
             default_args = nnunet_info.get("default_args", {})
@@ -103,7 +70,7 @@ if __name__ == "__main__":
             default_args = []
             min_mem = 0
             for nn in nnunet_id:
-                if nn not in alias_dict:
+                if nn not in self.alias_dict:
                     return {
                         "time_elapsed": None,
                         "gpu": None,
@@ -113,7 +80,7 @@ if __name__ == "__main__":
                         "status": FAILURE_STATUS,
                         "error": f"{nnunet_id} is not a valid nnunet_id",
                     }
-                nnunet_info = model_dictionary[alias_dict[nn]]
+                nnunet_info = self.model_dictionary[self.alias_dict[nn]]
                 nnunet_path.append(nnunet_info["path"])
                 curr_min_mem = nnunet_info.get("min_mem", 4000)
                 if curr_min_mem > min_mem:
@@ -199,4 +166,53 @@ if __name__ == "__main__":
             **output_paths,
         }
 
-    uvicorn.run(app, host="0.0.0.0", port=12345)
+
+def get_model_dictionary():
+    with open("model-serve-spec.yaml") as o:
+        models_specs = yaml.safe_load(o)
+    alias_dict = {}
+    for k in models_specs["models"]:
+        model_name = models_specs["models"][k]["name"]
+        alias_dict[model_name] = model_name
+        if "aliases" in models_specs["models"][k]:
+            for alias in models_specs["models"][k]["aliases"]:
+                alias_dict[alias] = model_name
+            del models_specs["models"][k]["aliases"]
+    if "model_folder" not in models_specs:
+        raise ValueError(
+            "model_folder must be specified in model-serve-spec.yaml"
+        )
+    grep_str = "|".join([k for k in models_specs["models"]])
+    pat = re.compile(grep_str)
+
+    model_folder = models_specs["model_folder"]
+    model_paths = [
+        os.path.dirname(x) for x in Path(model_folder).rglob("fold_0")
+    ]
+    model_dictionary = {}
+    for m in model_paths:
+        match = pat.search(m)
+        if match is not None:
+            match = match.group()
+            model_dictionary[match] = {
+                "path": m,
+                "model_information": get_info(f"{m}/dataset.json"),
+            }
+
+    model_dictionary = {
+        m: {
+            **model_dictionary[m],
+            **models_specs["models"].get(m, None),
+            "default_args": models_specs["models"][m].get("default_args", {}),
+        }
+        for m in model_dictionary
+        if m in models_specs["models"]
+    }
+    return model_dictionary, alias_dict
+
+
+app = fastapi.FastAPI()
+nnunet_api = nnUNetAPI(app)
+
+if __name__ == "__main__":
+    uvicorn.run(nnunet_api.app, host="0.0.0.0", port=12345)

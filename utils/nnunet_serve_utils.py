@@ -5,7 +5,7 @@ import SimpleITK as sitk
 import torch
 from glob import glob
 from pydantic import BaseModel, ConfigDict, Field
-from utils import (
+from .utils import (
     Folds,
     resample_image_to_target,
     read_dicom_as_sitk,

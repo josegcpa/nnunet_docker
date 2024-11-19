@@ -2,7 +2,7 @@
 model_folder: /home/jose_almeida/nnunet_docker/models
 models:
   prostate_whole_gland_model:
-    name: prostate_whole_gland_model
+    name: "Prostate whole gland segmentation"
     # file containing metadata for DICOM-seg output
     aliases: [prostate]
     metadata: metadata_templates/whole-prostate.json
@@ -18,7 +18,7 @@ models:
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
   prostate_zone_model:
-    name: prostate_zone_model
+    name: "Prostate zone segmentation model"
     aliases: [prostate_zones]
     metadata: metadata_templates/prostate-zones.json
     min_mem: 4000
@@ -31,9 +31,9 @@ models:
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
   prostate_aggressive_lesion_model:
-    name: prostate_aggressive_lesion_model
+    name: "Porstate aggressive lesion detection model"
     aliases: [aggressive_lesion]
-    metadata: metadata_templates/prostate-lesion.json
+    metadata: metadata_templates/prostate-aggressive-lesion.json
     min_mem: 4000
     default_args: 
       series_folders: ["inputs/seriesT2", "inputs/seriesDWI", "inputs/seriesADC"]
