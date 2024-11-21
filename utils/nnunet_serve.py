@@ -201,6 +201,9 @@ def get_model_dictionary():
                 "path": m,
                 "model_information": get_info(f"{m}/dataset.json"),
             }
+            model_dictionary[match]["n_classes"] = len(
+                model_dictionary[match]["model_information"]["labels"]
+            )
 
     model_dictionary = {
         m: {
