@@ -5,23 +5,103 @@
 <body>
     <div class="container">
         <h1>Generic nnU-Net model serving</h1>
-        <select name="model-selection" id="model-selection">
-        </select>
+        <form id="form-run-model">
+            <div class="input-container">
+                <p class="form-title">
+                    Choose model
+                </p>
+                <select name="model-selection" id="model-selection">
+                </select>
+            </div>
+            <div class="input-group-container-two">
+                <div class="input-element-container">
+                    <p class="form-title">
+                        Class index
+                    </p>
+                    <select id="class-idx-selection">
+                    </select>
+                </div>
+
+                <div class="input-element-container">
+                    <p class="form-title">
+                        Checkpoint
+                    </p>
+                    <select id="checkpoint-name-selection">
+                        <option value="checkpoint_best.pth">
+                            Best
+                        </option>
+                        <option value="checkpoint_final.pth">
+                            Final
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-group-container-one" id="file-inputs">
+            </div>
+            <div class="input-container">
+                <button class=" button" type="submit">
+                    Run
+                </button>
+            </div>
+        </form>
 
     </div>
 
     <script>
         const model_selection = document.getElementById("model-selection");
+        const class_idx_selection = document.getElementById("class-idx-selection");
+        const file_inputs = document.getElementById("file-inputs");
+        var class_idx_options = [];
+        var selected_class_idx = null;
+        var channel_names = [];
+
+        function update_parameters(model_info) {
+            value = model_selection.value;
+            max_class_idx = parseInt(model_info[value]["n_classes"]);
+            class_idx_options = [`<option value="${null}"></option>`];
+            selected_class_idx = parseInt(model_info[value]["default_args"]["class_idx"]);
+            for (let i = 0; i < max_class_idx; i++) {
+                if (selected_class_idx == i) {
+                    class_idx_options.push([`<option selected value="${i}">${i}</option>`]);
+                } else {
+                    class_idx_options.push([`<option value="${i}">${i}</option>`]);
+                }
+            }
+
+            channel_names = model_info[value]["model_information"]["channel_names"];
+            file_inputs_inner = [];
+            let i = 0;
+            for (let key in channel_names) {
+                file_inputs_inner.push(`<p class="form-title">${channel_names[key]} image</p>`)
+                file_inputs_inner.push(`<input type="file" id="image-${i}" name="avatar" accept=".nii.gz, .mha"/>`)
+                i += 1;
+            }
+            file_inputs.innerHTML = file_inputs_inner.join("\n")
+
+
+            class_idx_selection.innerHTML = class_idx_options.join("");
+        }
+
+        function collect_data() {
+            return {
+                "model_id": model_selection.value,
+                "class_idx": class_idx_selection.value,
+                "file_inputs": file_inputs.getElementsByTagName("input").map((x) => x.files),
+            }
+        }
 
         var model_info = fetch("http://0.0.0.0:8000/model_info", {
         })
             .then((response) => response.json())
             .then((response) => {
-                options = [];
+                console.log(response);
+                model_options = [];
                 for (let key in response) {
-                    options.push([`<option value="${key}">${response[key]["name"]}</option>`]);
-                    model_selection.innerHTML = options.join("");
+                    model_options.push([`<option value="${key}">${response[key]["name"]}</option>`]);
                 }
+                model_selection.innerHTML = model_options.join("");
+
+                model_selection.addEventListener("change", () => update_parameters(response));
             });
     </script>
 </body>

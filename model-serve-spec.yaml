@@ -7,9 +7,9 @@ models:
     aliases: [prostate]
     metadata: metadata_templates/whole-prostate.json
     # minimum amount of GPU memory to trigger running
-    min_mem: 4000 
+    min_mem: 4000
     # defines default params (overriden by posts)
-    default_args: 
+    default_args:
       series_folders: ["inputs/seriesT2"]
       use_folds: [0, 1, 2, 3, 4]
       proba_threshold: 0.1
@@ -22,7 +22,7 @@ models:
     aliases: [prostate_zones]
     metadata: metadata_templates/prostate-zones.json
     min_mem: 4000
-    default_args: 
+    default_args:
       series_folders: ["inputs/seriesT2"]
       use_folds: [0, 1, 2, 3, 4]
       proba_threshold: 0.1
@@ -31,12 +31,13 @@ models:
       save_proba_map: true
       checkpoint_name: "checkpoint_best.pth"
   prostate_aggressive_lesion_model:
-    name: "Porstate aggressive lesion detection model"
+    name: "Prostate aggressive lesion detection model"
     aliases: [aggressive_lesion]
     metadata: metadata_templates/prostate-aggressive-lesion.json
     min_mem: 4000
-    default_args: 
-      series_folders: ["inputs/seriesT2", "inputs/seriesDWI", "inputs/seriesADC"]
+    default_args:
+      series_folders:
+        ["inputs/seriesT2", "inputs/seriesDWI", "inputs/seriesADC"]
       use_folds: [0, 1, 2, 3, 4]
       proba_threshold: 0.1
       min_confidence: 0.5
