@@ -10,7 +10,6 @@ from scipy import ndimage
 import numpy as np
 import logging
 from tqdm import tqdm
-from rt_utils import RTStructBuilder
 
 from typing import Sequence
 
@@ -47,6 +46,12 @@ def save_mask_as_rtstruct(
             should be a tuple whose first element is the segment description
             and the second element a list of RGB values.
     """
+    try:
+        from rt_utils import RTStructBuilder
+    except ImportError:
+        raise ImportError(
+            "rt_utils is required to save masks in RT struct format"
+        )
     # based on the TotalSegmentator implementation
 
     logging.basicConfig(level=logging.WARNING)  # avoid messages from rt_utils
