@@ -31,11 +31,18 @@ def main(
 
     from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
+    if torch.cuda.is_available():
+        device = torch.device("cuda", 0)
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
     predictor = nnUNetPredictor(
         tile_step_size=0.5,
         use_gaussian=True,
         use_mirroring=use_mirroring,
-        device=torch.device("cuda", 0),
+        device=device,
         verbose=False,
         verbose_preprocessing=False,
         allow_tqdm=True,
