@@ -33,10 +33,13 @@ def main(
 
     if torch.cuda.is_available():
         device = torch.device("cuda", 0)
+        perform_everything_on_device = True
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
+        perform_everything_on_device = False
     else:
         device = torch.device("cpu")
+        perform_everything_on_device = False
 
     predictor = nnUNetPredictor(
         tile_step_size=0.5,
@@ -46,6 +49,7 @@ def main(
         verbose=False,
         verbose_preprocessing=False,
         allow_tqdm=True,
+        perform_everything_on_device=perform_everything_on_device,
     )
     # initializes the network architecture, loads the checkpoint
     predictor.initialize_from_trained_model_folder(
