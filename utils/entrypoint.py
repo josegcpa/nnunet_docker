@@ -1,3 +1,8 @@
+"""
+Command line utility to perform nnU-Net inference on a single study in SITK
+or DICOM format.
+"""
+
 import os
 import SimpleITK as sitk
 import torch

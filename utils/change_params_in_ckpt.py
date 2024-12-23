@@ -1,3 +1,7 @@
+"""
+Command line utility to change parameter names in a torch checkpoint.
+"""
+
 import torch
 
 if __name__ == "__main__":
