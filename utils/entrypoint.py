@@ -23,7 +23,33 @@ def main(
     use_mirroring: bool = True,
     use_folds: tuple[int] = (0,),
     study_name: str = None,
-):
+) -> tuple[list[str], list[str]]:
+    """
+    The main wrapper for the nnU-Net inference.
+
+    Args:
+        model_path (str): path to nnU-Net model.
+        series_paths (list[str]): paths to series (can be in DICOM format, where
+            a directory is expected for each series, or in Nifti format, where a
+            single file is expected for each series).
+        checkpoint_name (str): name of the checkpoint for nnU-Net. This
+            typically is either checkpoint_best.pth or checkpoint_final.pth.
+        output_dir (str): output directory for predictions.
+        tmp_dir (str, optional): temporary files directory. Defaults to ".tmp".
+        is_dicom (bool, optional): whether the input is DICOM. Defaults to
+            False.
+        use_mirroring (bool, optional): whether mirroring should be used.
+            Defaults to True.
+        use_folds (tuple[int], optional): which folds should be used. Defaults
+            to (0,).
+        study_name (str, optional): name of the study to save the output.
+            Defaults to None.
+
+    Returns:
+        prediction_files: list of paths to predicted files.
+        good_file_paths: list of DICOM file paths which were valid (None if
+            ``is_dicom`` is False).
+    """
 
     os.environ["nnUNet_preprocessed"] = "tmp/preproc"
     os.environ["nnUNet_raw"] = series_paths[0]
@@ -191,3 +217,5 @@ if __name__ == "__main__":
             save_rt_struct=args.rt_struct_output,
             class_idx=args.class_idx,
         )
+
+    torch.cuda.empty_cache()
