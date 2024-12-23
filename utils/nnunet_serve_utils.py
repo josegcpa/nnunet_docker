@@ -255,30 +255,64 @@ def predict(
         allow_tqdm=True,
     )
 
-    for k in [
+    inference_param_names = [
+        "output_dir",
+        "class_idx",
+        "checkpoint_name",
+        "tmp_dir",
+        "is_dicom",
+        "use_folds",
+        "proba_threshold",
+        "min_confidence",
+        "intersect_with",
+        "min_overlap",
+    ]
+    export_param_names = [
+        "output_dir",
+        "suffix",
+        "is_dicom",
+        "save_proba_map",
+        "save_nifti_inputs",
+        "save_rt_struct_output",
+    ]
+    delete_params = [
         "nnunet_id",
         "tta",
         "min_mem",
         "aliases",
         "study_path",
         "series_folders",
-    ]:
-        if k in params:
-            del params[k]
+    ]
 
-    output_paths = wraper(
-        **params,
+    params = {k: params[k] for k in params if k not in delete_params}
+    inference_params = {
+        k: params[k] for k in params if k in inference_param_names
+    }
+    export_params = {k: params[k] for k in params if k in export_param_names}
+
+    sitk_files, mask_path, good_file_paths, proba_map = multi_model_inference(
         series_paths=series_paths,
         predictor=predictor,
         nnunet_path=nnunet_path,
         metadata_path=metadata_path,
+        **inference_params,
     )
+
+    output_paths = export_predictions(
+        mask_path=mask_path,
+        sitk_files=sitk_files,
+        proba_map=proba_map,
+        good_file_paths=good_file_paths,
+        metadata_path=metadata_path,
+        **export_params,
+    )
+
     del predictor
     torch.cuda.empty_cache()
     return output_paths
 
 
-def inference(
+def single_model_inference(
     predictor: nnUNetPredictor,
     nnunet_path: str,
     series_paths: list[str],
@@ -412,7 +446,7 @@ def get_info(dataset_json_path: str) -> dict:
         return json.load(o)
 
 
-def wraper(
+def multi_model_inference(
     predictor: nnUNetPredictor,
     nnunet_path: str | list[str],
     series_paths: list[str] | list[list[str]],
@@ -426,14 +460,9 @@ def wraper(
     min_confidence: float | tuple[float] | list[float] | None = None,
     intersect_with: str | sitk.Image | None = None,
     min_overlap: float = 0.1,
-    save_proba_map: bool = False,
-    save_nifti_inputs: bool = False,
-    save_rt_struct_output: bool = False,
-    suffix: str | None = None,
-    metadata_path: str | None = None,
 ):
     """
-    Prediction wraper.
+    Prediction wraper for multiple models. Exports the outputs.
 
     Args:
         predictor (nnUNetPredictor): nnUNetPredictor object.
@@ -509,38 +538,58 @@ def wraper(
                 out = output_dir
             else:
                 out = tmp_dir
-            sitk_files, mask_path, good_file_paths, proba_map = inference(
-                predictor=predictor,
-                nnunet_path=nnunet_path[i].strip(),
-                series_paths=series_paths[i],
-                class_idx=class_idx_list[i],
-                checkpoint_name=checkpoint_name.strip(),
-                output_dir=out,
-                tmp_dir=tmp_dir,
-                is_dicom=is_dicom,
-                use_folds=use_folds,
-                proba_threshold=proba_threshold[i],
-                min_confidence=min_confidence[i],
-                intersect_with=intersect_with,
-                min_overlap=min_overlap,
+            sitk_files, mask_path, good_file_paths, proba_map = (
+                single_model_inference(
+                    predictor=predictor,
+                    nnunet_path=nnunet_path[i].strip(),
+                    series_paths=series_paths[i],
+                    class_idx=class_idx_list[i],
+                    checkpoint_name=checkpoint_name.strip(),
+                    output_dir=out,
+                    tmp_dir=tmp_dir,
+                    is_dicom=is_dicom,
+                    use_folds=use_folds,
+                    proba_threshold=proba_threshold[i],
+                    min_confidence=min_confidence[i],
+                    intersect_with=intersect_with,
+                    min_overlap=min_overlap,
+                )
             )
             intersect_with = mask_path
     else:
-        sitk_files, mask_path, good_file_paths, proba_map = inference(
-            predictor=predictor,
-            nnunet_path=nnunet_path.strip(),
-            series_paths=series_paths,
-            checkpoint_name=checkpoint_name.strip(),
-            output_dir=output_dir,
-            tmp_dir=tmp_dir,
-            is_dicom=is_dicom,
-            use_folds=use_folds,
-            proba_threshold=proba_threshold,
-            min_confidence=min_confidence,
-            intersect_with=intersect_with,
-            min_overlap=min_overlap,
+        sitk_files, mask_path, good_file_paths, proba_map = (
+            single_model_inference(
+                predictor=predictor,
+                nnunet_path=nnunet_path.strip(),
+                series_paths=series_paths,
+                checkpoint_name=checkpoint_name.strip(),
+                output_dir=output_dir,
+                tmp_dir=tmp_dir,
+                is_dicom=is_dicom,
+                use_folds=use_folds,
+                proba_threshold=proba_threshold,
+                min_confidence=min_confidence,
+                intersect_with=intersect_with,
+                min_overlap=min_overlap,
+            )
         )
 
+    return sitk_files, mask_path, good_file_paths, proba_map
+
+
+def export_predictions(
+    mask_path: str,
+    output_dir: str,
+    sitk_files: list[str] | None = None,
+    proba_map: sitk.Image | None = None,
+    good_file_paths: list[str] | None = None,
+    suffix: str | None = None,
+    is_dicom: bool = False,
+    metadata_path: str | None = None,
+    save_proba_map: bool = False,
+    save_nifti_inputs: bool = False,
+    save_rt_struct_output: bool = False,
+):
     mask = sitk.ReadImage(mask_path)
 
     output_names = {
