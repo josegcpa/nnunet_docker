@@ -1,0 +1,208 @@
+{
+  "ContentCreatorName": "Computational Clinical Imaging Group",
+  "ClinicalTrialSeriesID": "Session1",
+  "ClinicalTrialTimePointID": "1",
+  "SeriesDescription": "Segmentation",
+  "SeriesNumber": "300",
+  "InstanceNumber": "1",
+  "BodyPartExamined": "Abdomen",
+  "Manufacturer": "",
+  "InstitutionName": "Champalimaud Foundation",
+  "ImageComments": "Multiclass segmentation",
+  "segmentAttributes": [
+    [
+      {
+        "labelID": 1,
+        "SegmentNumber": 1,
+        "SegmentLabel": "HCC <10%",
+        "SegmentDescription": "Prob Lesion 1.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [0, 0, 128],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 2,
+        "SegmentNumber": 2,
+        "SegmentLabel": "HCC 10%-20%",
+        "SegmentDescription": "Prob Lesion 2.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [0, 0, 255],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 3,
+        "SegmentNumber": 3,
+        "SegmentLabel": "HCC 20%-30%",
+        "SegmentDescription": "Prob Lesion 3.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [0, 96, 255],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 4,
+        "SegmentNumber": 4,
+        "SegmentLabel": "HCC 30%-40%",
+        "SegmentDescription": "Prob Lesion 4.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [0, 212, 255],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 5,
+        "SegmentNumber": 5,
+        "SegmentLabel": "HCC 40%-50%",
+        "SegmentDescription": "Prob Lesion 5.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [76, 255, 170],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 6,
+        "SegmentNumber": 6,
+        "SegmentLabel": "HCC 50%-60%",
+        "SegmentDescription": "Prob Lesion 6.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [170, 255, 76],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 7,
+        "SegmentNumber": 7,
+        "SegmentLabel": "HCC 60%-70%",
+        "SegmentDescription": "Prob Lesion 7.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [255, 230, 0],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 8,
+        "SegmentNumber": 8,
+        "SegmentLabel": "HCC 70%-80%",
+        "SegmentDescription": "Prob Lesion 8.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [255, 122, 0],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 9,
+        "SegmentNumber": 9,
+        "SegmentLabel": "HCC 80%-90%",
+        "SegmentDescription": "Prob Lesion 9.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [255, 19, 0],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      },
+      {
+        "labelID": 10,
+        "SegmentNumber": 10,
+        "SegmentLabel": "HCC >90%",
+        "SegmentDescription": "Prob Lesion 10.0",
+        "SegmentAlgorithmType": "AUTOMATIC",
+        "SegmentAlgorithmName": "HCC segmentation",
+        "recommendedDisplayRGBValue": [128, 0, 0],
+        "SegmentedPropertyCategoryCodeSequence": {
+          "CodeValue": "M-01000",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Morphologically Altered Structure"
+        },
+        "SegmentedPropertyTypeCodeSequence": {
+          "CodeValue": "M-01100",
+          "CodingSchemeDesignator": "SRT",
+          "CodeMeaning": "Lesion"
+        }
+      }
+    ]
+  ],
+  "ContentLabel": "SEGMENTATION",
+  "ContentDescription": "Image segmentation"
+}
